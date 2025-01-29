@@ -6404,6 +6404,441 @@ _**Assistant**_
 
 
 
+
+
+Teklif formuna otomatik oluşturulan teklif numarasını ekleyelim:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import { useState, useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { MusteriSecici } from "./musteri-secici"
+import { IlgiliKisiSecici } from "./ilgili-kisi-secici"
+import { TeklifKalemleri } from "./teklif-kalemleri"
+import { teklifSchema, type TeklifForm } from "@/lib/validations/teklif"
+import { createTeklif, updateTeklif, generateTeklifNo } from "@/lib/actions/teklif"
+import { PARA_BIRIMLERI, TEKLIF_DURUMLARI } from "@/lib/validations/teklif"
+import type { Musteriler, IlgiliKisiler } from "@prisma/client"
+import { getMusteri } from "@/lib/actions/musteri"
+
+interface TeklifFormProps {
+  initialData?: TeklifForm & { id: number }
+  currentUser: {
+    id: number
+    rolId: number
+  }
+}
+
+export function TeklifForm({ initialData, currentUser }: TeklifFormProps) {
+  const router = useRouter()
+  const [selectedMusteri, setSelectedMusteri] = useState<(Musteriler & {
+    ilgiliKisiler: IlgiliKisiler[]
+  }) | null>(null)
+  const [teklifNo, setTeklifNo] = useState<string>("")
+
+  const form = useForm<TeklifForm>({
+    resolver: zodResolver(teklifSchema),
+    defaultValues: initialData || {
+      musteriId: undefined,
+      ilgiliKisiId: undefined,
+      baslik: "",
+      aciklama: "",
+      paraBirimi: "TRY",
+      durum: "Taslak",
+      sonGecerlilikTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
+      notlar: "",
+      teklifKalemleri: [],
+    },
+  })
+
+  // Müşteri seçildiğinde teklif numarası oluştur
+  useEffect(() => {
+    async function loadTeklifNo() {
+      const musteriId = form.watch("musteriId")
+      if (musteriId) {
+        const yeniTeklifNo = await generateTeklifNo(musteriId)
+        setTeklifNo(yeniTeklifNo)
+      } else {
+        setTeklifNo("")
+      }
+    }
+    loadTeklifNo()
+  }, [form.watch("musteriId")])
+
+  // Sayfa yüklendiğinde veya düzenleme modunda initialData varsa müşteri bilgilerini getir
+  useEffect(() => {
+    async function loadMusteri() {
+      if (initialData?.musteriId) {
+        const { musteri } = await getMusteri(initialData.musteriId)
+        if (musteri) {
+          setSelectedMusteri(musteri)
+        }
+      }
+    }
+    loadMusteri()
+  }, [initialData?.musteriId])
+
+  async function onSubmit(data: TeklifForm) {
+    try {
+      if (initialData) {
+        const result = await updateTeklif(initialData.id, data)
+        if (result.error) {
+          console.error(result.error)
+          return
+        }
+      } else {
+        const result = await createTeklif(data)
+        if (result.error) {
+          console.error(result.error)
+          return
+        }
+      }
+      router.push("/teklifler")
+    } catch (error) {
+      console.error("Form gönderilirken bir hata oluştu:", error)
+    }
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Müşteri</Label>
+          <MusteriSecici
+            value={form.watch("musteriId")}
+            onValueChange={(value, musteri) => {
+              form.setValue("musteriId", value, { shouldValidate: true })
+              form.setValue("ilgiliKisiId", undefined)
+              setSelectedMusteri(musteri)
+            }}
+          />
+          {form.formState.errors.musteriId && (
+            <p className="text-sm text-red-500">
+              {form.formState.errors.musteriId.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>İlgili Kişi</Label>
+          <IlgiliKisiSecici
+            value={form.watch("ilgiliKisiId")}
+            onValueChange={(value) => form.setValue("ilgiliKisiId", value)}
+            ilgiliKisiler={selectedMusteri?.ilgiliKisiler || []}
+            disabled={!selectedMusteri}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Teklif No</Label>
+          <Input
+            value={teklifNo}
+            readOnly
+            disabled
+            className="bg-muted"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="baslik">Başlık</Label>
+          <Input
+            id="baslik"
+            {...form.register("baslik")}
+            placeholder="Teklif başlığı"
+          />
+          {form.formState.errors.baslik && (
+            <p className="text-sm text-red-500">
+              {form.formState.errors.baslik.message}
+            </p>
+          )}
+        </div>
+
+        {/* ... diğer form alanları ... */}
+      </div>
+
+      <TeklifKalemleri
+        value={form.watch("teklifKalemleri")}
+        onChange={(value) => form.setValue("teklifKalemleri", value)}
+        error={form.formState.errors.teklifKalemleri?.message}
+      />
+
+      <div className="flex justify-end gap-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/teklifler")}
+        >
+          İptal
+        </Button>
+        <Button type="submit">
+          {initialData ? "Güncelle" : "Oluştur"}
+        </Button>
+      </div>
+    </form>
+  )
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi de `generateTeklifNo` fonksiyonunu `teklif.ts` action dosyasına ekleyelim:
+
+---
+
+_**Assistant**_
+
+```
+// Teklif numarası oluşturma fonksiyonu
+export async function generateTeklifNo(musteriId: number) {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+
+  // O ay içindeki son teklif numarasını bul
+  const lastTeklif = await prisma.teklifler.findFirst({
+    where: {
+      musteriId,
+      teklifNo: {
+        startsWith: `${year}${month}-`,
+      },
+    },
+    orderBy: {
+      teklifNo: "desc",
+    },
+  })
+
+  let sequence = 1
+  if (lastTeklif) {
+    const lastSequence = parseInt(lastTeklif.teklifNo.split("-")[1])
+    sequence = lastSequence + 1
+  }
+
+  return `${year}${month}-${String(sequence).padStart(3, "0")}`
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. Teklif formuna teklif numarası alanı ekledim:
+   - Salt okunur ve devre dışı input
+   - Gri arka plan ile vurgu
+   - Müşteri seçildiğinde otomatik güncelleme
+
+2. Teklif numarası oluşturma mantığı:
+   - Yıl ve ay bilgisi (YYYYAA formatında)
+   - Müşteriye özel sıralı numara (001'den başlayan)
+   - Ay bazında sıfırlanan sayaç
+
+3. Müşteri seçimi ile entegrasyon:
+   - Müşteri seçildiğinde otomatik numara oluşturma
+   - Müşteri değiştiğinde numara güncelleme
+   - Müşteri silindiğinde numara temizleme
+
+Artık:
+1. Müşteri seçildiğinde otomatik teklif numarası oluşacak
+2. Teklif numarası YYYYAA-XXX formatında olacak
+3. Her müşteri için ayrı sayaç tutulacak
+
+Başka bir güncelleme yapmak ister misiniz?
+
+---
+
+_**User**_
+
+güzel olmuş teşekkürler. 
+Şimdi github deposuna programın son halini push edelim. Version numarasını 1 arttıralım
+
+---
+
+_**Assistant**_
+
+
+
+
+
+Önce `package.json` dosyasında versiyon numarasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Versiyon numarasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+{
+  "name": "yeni_crm",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prepare": "husky install",
+    "seed": "ts-node prisma/seed.ts"
+  },
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi değişiklikleri commit edip GitHub'a push edelim:
+
+---
+
+_**Assistant**_
+
+```
+git add . ; git commit -m "feat: teklif modülü eklendi" ; git push
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. Versiyon numarasını `0.3.0` olarak güncelledim:
+   - Minor versiyon artışı (yeni özellik eklendiği için)
+   - Patch sıfırlandı (yeni minor sürüm)
+
+2. Commit mesajı:
+   - "feat: teklif modülü eklendi"
+   - Conventional commits formatına uygun
+   - Semantic versioning için uygun
+
+3. GitHub'a push:
+   - Tüm değişiklikler eklendi
+   - Commit oluşturuldu
+   - Remote'a push edildi
+
+Başka bir işlem yapmak ister misiniz?
+
+---
+
+_**User**_
+
+depoyu kontrol et ve güncelleme yapıldığından emin ol. Dosyaları karşılaştır
+
+---
+
+_**Assistant**_
+
+
+
+Önce git durumunu kontrol edelim:
+
+---
+
+_**Assistant**_
+
+```
+git status
+```
+
+---
+
+_**Assistant**_
+
+
+
 ---
 
 
