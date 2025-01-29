@@ -1,0 +1,163 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Musteriler {
+  id            Int             @id @default(autoincrement()) @map("MusteriID")
+  musteriTipi   String         @map("MusteriTipi") @db.VarChar(50)
+  ad            String         @map("Ad") @db.VarChar(100)
+  soyad         String?        @map("Soyad") @db.VarChar(100)
+  vergiNo       String?        @map("VergiNo") @db.VarChar(20)
+  telefon       String?        @map("Telefon") @db.VarChar(20)
+  email         String?        @map("Email") @db.VarChar(100)
+  adres         String?        @map("Adres") @db.Text
+  kayitTarihi   DateTime       @default(now()) @map("KayitTarihi")
+  ilgiliKisiler IlgiliKisiler[]
+  teklifler     Teklifler[]
+  etkinlikler   Etkinlikler[]
+  firsatlar     Firsatlar[]
+
+  @@map("Musteriler")
+}
+
+model IlgiliKisiler {
+  id          Int       @id @default(autoincrement()) @map("IlgiliKisiID")
+  musteriId   Int       @map("MusteriID")
+  ad          String    @map("Ad") @db.VarChar(100)
+  soyad       String?   @map("Soyad") @db.VarChar(100)
+  unvan       String?   @map("Unvan") @db.VarChar(100)
+  telefon     String?   @map("Telefon") @db.VarChar(20)
+  email       String?   @map("Email") @db.VarChar(100)
+  musteri     Musteriler @relation(fields: [musteriId], references: [id])
+
+  @@map("IlgiliKisiler")
+}
+
+model Teklifler {
+  id                  Int               @id @default(autoincrement()) @map("TeklifID")
+  musteriId           Int               @map("MusteriID")
+  teklifNo            String            @unique @map("TeklifNo") @db.VarChar(50)
+  baslik              String            @map("Baslik") @db.VarChar(200)
+  aciklama            String?           @map("Aciklama") @db.Text
+  toplamTutar         Decimal           @map("ToplamTutar") @db.Decimal(10, 2)
+  paraBirimi          String            @map("ParaBirimi") @db.VarChar(10)
+  durum               String            @map("Durum") @db.VarChar(50)
+  olusturmaTarihi     DateTime          @default(now()) @map("OlusturmaTarihi")
+  sonGecerlilikTarihi DateTime          @map("SonGecerlilikTarihi")
+  kullaniciId         Int               @map("KullaniciID")
+  revizyon            Int               @default(1) @map("Revizyon")
+  notlar              String?           @map("Notlar") @db.Text
+  musteri             Musteriler        @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+  kullanici           Kullanicilar      @relation(fields: [kullaniciId], references: [id])
+  teklifKalemleri     TeklifKalemleri[]
+  teklifDosyalari     TeklifDosyalari[]
+
+  @@index([musteriId])
+  @@index([kullaniciId])
+  @@map("Teklifler")
+}
+
+model TeklifKalemleri {
+  id          Int       @id @default(autoincrement()) @map("KalemID")
+  teklifId    Int       @map("TeklifID")
+  urunAdi     String    @map("UrunAdi") @db.VarChar(200)
+  miktar      Int       @map("Miktar")
+  birim       String    @map("Birim") @db.VarChar(20)
+  birimFiyat  Decimal   @map("BirimFiyat") @db.Decimal(10, 2)
+  kdvOrani    Int       @map("KDVOrani")
+  aciklama    String?   @map("Aciklama") @db.Text
+  teklif      Teklifler @relation(fields: [teklifId], references: [id], onDelete: Cascade)
+
+  @@index([teklifId])
+  @@map("TeklifKalemleri")
+}
+
+model Roller {
+  id          Int           @id @default(autoincrement()) @map("RolID")
+  rolAdi      String        @unique @map("RolAdi") @db.VarChar(100)
+  yetkiler    String?       @map("Yetkiler") @db.Text
+  kullanicilar Kullanicilar[]
+
+  @@map("Roller")
+}
+
+model Kullanicilar {
+  id          Int           @id @default(autoincrement()) @map("KullaniciID")
+  ad          String        @map("Ad") @db.VarChar(100)
+  soyad       String        @map("Soyad") @db.VarChar(100)
+  email       String        @unique @map("Email") @db.VarChar(100)
+  sifreHash   String        @map("SifreHash") @db.VarChar(255)
+  rolId       Int           @map("RolID")
+  rol         Roller        @relation(fields: [rolId], references: [id])
+  etkinlikler Etkinlikler[]
+  teklifler   Teklifler[]
+  islemGecmisi IslemGecmisi[]
+
+  @@map("Kullanicilar")
+}
+
+model Etkinlikler {
+  id              Int          @id @default(autoincrement()) @map("EtkinlikID")
+  musteriId       Int          @map("MusteriID")
+  etkinlikTipi    String       @map("EtkinlikTipi") @db.VarChar(100)
+  baslangicTarihi DateTime     @map("BaslangicTarihi")
+  bitisTarihi     DateTime?    @map("BitisTarihi")
+  aciklama        String?      @map("Aciklama") @db.Text
+  kullaniciId     Int          @map("KullaniciID")
+  musteri         Musteriler   @relation(fields: [musteriId], references: [id])
+  kullanici       Kullanicilar @relation(fields: [kullaniciId], references: [id])
+
+  @@map("Etkinlikler")
+}
+
+model Asamalar {
+  id          Int         @id @default(autoincrement()) @map("AsamaID")
+  asamaAdi    String      @map("AsamaAdi") @db.VarChar(100)
+  sira        Int         @map("Sira")
+  firsatlar   Firsatlar[]
+
+  @@map("Asamalar")
+}
+
+model Firsatlar {
+  id                  Int       @id @default(autoincrement()) @map("FirsatID")
+  musteriId           Int       @map("MusteriID")
+  baslik              String    @map("Baslik") @db.VarChar(200)
+  beklenenKapanisTarihi DateTime? @map("BeklenenKapanisTarihi")
+  asamaId             Int       @map("AsamaID")
+  olasilik            Decimal   @map("Olasilik") @db.Decimal(5,2)
+  musteri             Musteriler @relation(fields: [musteriId], references: [id])
+  asama               Asamalar   @relation(fields: [asamaId], references: [id])
+
+  @@map("Firsatlar")
+}
+
+model TeklifDosyalari {
+  id            Int       @id @default(autoincrement()) @map("DosyaID")
+  teklifId      Int       @map("TeklifID")
+  dosyaAdi      String    @map("DosyaAdi") @db.VarChar(255)
+  dosyaYolu     String    @map("DosyaYolu") @db.VarChar(255)
+  yuklemeTarihi DateTime  @default(now()) @map("YuklemeTarihi")
+  teklif        Teklifler @relation(fields: [teklifId], references: [id], onDelete: Cascade)
+
+  @@index([teklifId])
+  @@map("TeklifDosyalari")
+}
+
+model IslemGecmisi {
+  id                Int           @id @default(autoincrement()) @map("LogID")
+  tabloAdi          String        @map("TabloAdi") @db.VarChar(100)
+  kayitId           Int           @map("KayitID")
+  degisiklikDetayi  String        @map("DegisiklikDetayi") @db.Text
+  tarih             DateTime      @default(now()) @map("Tarih")
+  kullaniciId       Int           @map("KullaniciID")
+  kullanici         Kullanicilar  @relation(fields: [kullaniciId], references: [id])
+
+  @@map("IslemGecmisi")
+} 

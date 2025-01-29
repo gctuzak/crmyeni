@@ -1,0 +1,210 @@
+"""
+Language > Specialist: TypeScript > Full-Stack Developer (Next.js, PostgreSQL, Tailwind CSS)
+Includes: Next.js, TypeScript, PostgreSQL, Tailwind CSS, shadcn/ui, Zod, Prisma, Zustand, Jest, Cypress
+Requirements: Follow cursor_rules.json and cursorrules.mdc for coding style, structure, and best practices.
+Plan: Develop a CRM task and offer tracking web application step-by-step, starting with the backend. Ensure the application is modular and extensible for future modules.
+"""
+
+### **Project Overview**
+We are building a **CRM Task and Offer Tracking Web Application** with the following modules:
+1. **İlişki/Müşteri (Customer Relationship)**
+2. **Aktivite/Görev (Activity/Task)**
+3. **Teklif (Offer)**
+4. **Ürün/Hizmet Listesi (Product/Service List)**
+5. **Sipariş (Order)**
+
+The application should be **modular** and **extensible** to allow for the addition of new modules in the future.
+
+### **Technology Stack**
+#### **Frontend**
+- **Framework**: Next.js (React)
+- **Language**: TypeScript
+- **UI Components**: shadcn/ui (based on Radix UI primitives)
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+
+#### **Backend**
+- **Framework**: Next.js API Routes
+- **Language**: TypeScript
+- **Database**: PostgreSQL
+- **ORM**: Prisma
+- **State Management**: Zustand
+- **Validation**: Zod
+
+#### **Deployment**
+- **To be determined**: Deployment strategy will be defined later.
+
+### **Database Structure**
+We will use a PostgreSQL database named `crmdata`. The database user is `postgres`. Below is the initial database schema:
+
+#### **1. Müşteriler Tablosu (Customers Table)**
+```sql
+CREATE TABLE Musteriler (
+    MusteriID SERIAL PRIMARY KEY,
+    MusteriTipi VARCHAR(50) NOT NULL,
+    Ad VARCHAR(100) NOT NULL,
+    Soyad VARCHAR(100),
+    VergiNo VARCHAR(20),
+    Telefon VARCHAR(20),
+    Email VARCHAR(100),
+    Adres TEXT,
+    KayitTarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### **2. İlgiliKişiler Tablosu (Related Persons Table)**
+```sql
+CREATE TABLE IlgiliKisiler (
+    IlgiliKisiID SERIAL PRIMARY KEY,
+    MusteriID INT NOT NULL REFERENCES Musteriler(MusteriID),
+    Ad VARCHAR(100) NOT NULL,
+    Soyad VARCHAR(100),
+    Unvan VARCHAR(100),
+    Telefon VARCHAR(20),
+    Email VARCHAR(100)
+);
+```
+
+#### **3. Teklifler Tablosu (Offers Table)**
+```sql
+CREATE TABLE Teklifler (
+    TeklifID SERIAL PRIMARY KEY,
+    MusteriID INT NOT NULL REFERENCES Musteriler(MusteriID),
+    TeklifNumarasi VARCHAR(50) UNIQUE NOT NULL,
+    Baslik VARCHAR(200) NOT NULL,
+    Aciklama TEXT,
+    DurumID INT NOT NULL REFERENCES Durumlar(DurumID),
+    OlusturmaTarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    SonGecerlilikTarihi DATE,
+    ToplamTutar DECIMAL(18,2)
+);
+```
+
+#### **4. TeklifKalemleri Tablosu (Offer Items Table)**
+```sql
+CREATE TABLE TeklifKalemleri (
+    KalemID SERIAL PRIMARY KEY,
+    TeklifID INT NOT NULL REFERENCES Teklifler(TeklifID),
+    UrunAdi VARCHAR(200) NOT NULL,
+    Miktar INT DEFAULT 1,
+    BirimFiyat DECIMAL(18,2) NOT NULL,
+    ToplamFiyat DECIMAL(18,2) GENERATED ALWAYS AS (Miktar * BirimFiyat) STORED,
+    Aciklama TEXT
+);
+```
+
+#### **5. Durumlar Tablosu (Statuses Table)**
+```sql
+CREATE TABLE Durumlar (
+    DurumID SERIAL PRIMARY KEY,
+    DurumAdi VARCHAR(100) NOT NULL,
+    DurumTuru VARCHAR(50) NOT NULL
+);
+```
+
+#### **6. Etkinlikler Tablosu (Activities Table)**
+```sql
+CREATE TABLE Etkinlikler (
+    EtkinlikID SERIAL PRIMARY KEY,
+    MusteriID INT NOT NULL REFERENCES Musteriler(MusteriID),
+    EtkinlikTipi VARCHAR(100) NOT NULL,
+    BaslangicTarihi TIMESTAMP NOT NULL,
+    BitisTarihi TIMESTAMP,
+    Aciklama TEXT,
+    KullaniciID INT NOT NULL REFERENCES Kullanicilar(KullaniciID)
+);
+```
+
+#### **7. Kullanıcılar Tablosu (Users Table)**
+```sql
+CREATE TABLE Kullanicilar (
+    KullaniciID SERIAL PRIMARY KEY,
+    Ad VARCHAR(100) NOT NULL,
+    Soyad VARCHAR(100) NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    SifreHash VARCHAR(255) NOT NULL,
+    RolID INT NOT NULL REFERENCES Roller(RolID)
+);
+```
+
+#### **8. Roller Tablosu (Roles Table)**
+```sql
+CREATE TABLE Roller (
+    RolID SERIAL PRIMARY KEY,
+    RolAdi VARCHAR(100) UNIQUE NOT NULL,
+    Yetkiler TEXT
+);
+```
+
+#### **9. Fırsatlar Tablosu (Opportunities Table)**
+```sql
+CREATE TABLE Firsatlar (
+    FirsatID SERIAL PRIMARY KEY,
+    MusteriID INT NOT NULL REFERENCES Musteriler(MusteriID),
+    Baslik VARCHAR(200) NOT NULL,
+    BeklenenKapanisTarihi DATE,
+    AsamaID INT NOT NULL REFERENCES Asamalar(AsamaID),
+    Olasilik DECIMAL(5,2) CHECK (Olasilik >= 0 AND Olasilik <= 100)
+);
+```
+
+#### **10. Aşamalar Tablosu (Stages Table)**
+```sql
+CREATE TABLE Asamalar (
+    AsamaID SERIAL PRIMARY KEY,
+    AsamaAdi VARCHAR(100) NOT NULL,
+    Sira INT NOT NULL
+);
+```
+
+#### **11. TeklifDosyaları Tablosu (Offer Files Table)**
+```sql
+CREATE TABLE TeklifDosyalari (
+    DosyaID SERIAL PRIMARY KEY,
+    TeklifID INT NOT NULL REFERENCES Teklifler(TeklifID),
+    DosyaAdi VARCHAR(255) NOT NULL,
+    DosyaYolu VARCHAR(255) NOT NULL,
+    YuklemeTarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### **12. İşlemGeçmişi Tablosu (Transaction History Table)**
+```sql
+CREATE TABLE IslemGecmisi (
+    LogID SERIAL PRIMARY KEY,
+    TabloAdi VARCHAR(100) NOT NULL,
+    KayitID INT NOT NULL,
+    DegisiklikDetayi TEXT NOT NULL,
+    Tarih TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KullaniciID INT NOT NULL REFERENCES Kullanicilar(KullaniciID)
+);
+```
+
+### **Development Plan**
+1. **Backend Development**:
+   - Set up the PostgreSQL database and Prisma ORM.
+   - Create API routes for each module (Müşteriler, İlgiliKişiler, Teklifler, etc.).
+   - Implement validation using Zod.
+   - Add error handling and logging.
+
+2. **Frontend Development**:
+   - Create Next.js pages for each module.
+   - Use shadcn/ui and Tailwind CSS for UI components.
+   - Implement Zustand for state management.
+   - Add form validation and error handling.
+
+3. **Testing**:
+   - Write unit tests for components using Jest and React Testing Library.
+   - Write E2E tests for critical workflows using Cypress.
+
+4. **Documentation**:
+   - Add JSDoc comments for functions and components.
+   - Generate API documentation using Swagger/OpenAPI.
+
+5. **Deployment**:
+   - Define deployment strategy (e.g., Vercel, AWS).
+
+### **Next Task**
+- **Backend Setup**: Set up the PostgreSQL database and Prisma ORM. Create the initial schema and seed the database with sample data.
+
+"""

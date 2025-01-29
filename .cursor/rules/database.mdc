@@ -1,0 +1,295 @@
+---
+description: Database
+globs: 
+---
+
+
+
+### **1. Müşteriler Tablosu**
+```sql
+CREATE TABLE Musteriler (
+    MusteriID INT PRIMARY KEY AUTO_INCREMENT,
+    MusteriTipi VARCHAR(50) NOT NULL,
+    Ad VARCHAR(100) NOT NULL,
+    Soyad VARCHAR(100),
+    VergiNo VARCHAR(20),
+    Telefon VARCHAR(20),
+    Email VARCHAR(100),
+    Adres TEXT,
+    KayitTarihi DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+### **2. İlgiliKişiler Tablosu**
+```sql
+CREATE TABLE IlgiliKisiler (
+    IlgiliKisiID INT PRIMARY KEY AUTO_INCREMENT,
+    MusteriID INT NOT NULL,
+    Ad VARCHAR(100) NOT NULL,
+    Soyad VARCHAR(100),
+    Unvan VARCHAR(100),
+    Telefon VARCHAR(20),
+    Email VARCHAR(100),
+    FOREIGN KEY (MusteriID) REFERENCES Musteriler(MusteriID)
+);
+```
+
+---
+
+### **3. Teklifler Tablosu**
+```sql
+CREATE TABLE Teklifler (
+    TeklifID INT PRIMARY KEY AUTO_INCREMENT,
+    MusteriID INT NOT NULL,
+    TeklifNumarasi VARCHAR(50) UNIQUE NOT NULL,
+    Baslik VARCHAR(200) NOT NULL,
+    Aciklama TEXT,
+    DurumID INT NOT NULL,
+    OlusturmaTarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
+    SonGecerlilikTarihi DATE,
+    ToplamTutar DECIMAL(18,2),
+    FOREIGN KEY (MusteriID) REFERENCES Musteriler(MusteriID),
+    FOREIGN KEY (DurumID) REFERENCES Durumlar(DurumID)
+);
+```
+
+---
+
+### **4. TeklifKalemleri Tablosu**
+```sql
+CREATE TABLE TeklifKalemleri (
+    KalemID INT PRIMARY KEY AUTO_INCREMENT,
+    TeklifID INT NOT NULL,
+    UrunAdi VARCHAR(200) NOT NULL,
+    Miktar INT DEFAULT 1,
+    BirimFiyat DECIMAL(18,2) NOT NULL,
+    ToplamFiyat DECIMAL(18,2) GENERATED ALWAYS AS (Miktar * BirimFiyat) STORED,
+    Aciklama TEXT,
+    FOREIGN KEY (TeklifID) REFERENCES Teklifler(TeklifID)
+);
+```
+
+---
+
+### **5. Durumlar Tablosu**
+```sql
+CREATE TABLE Durumlar (
+    DurumID INT PRIMARY KEY AUTO_INCREMENT,
+    DurumAdi VARCHAR(100) NOT NULL,
+    DurumTuru VARCHAR(50) NOT NULL
+);
+```
+
+---
+
+### **6. Etkinlikler Tablosu**
+```sql
+CREATE TABLE Etkinlikler (
+    EtkinlikID INT PRIMARY KEY AUTO_INCREMENT,
+    MusteriID INT NOT NULL,
+    EtkinlikTipi VARCHAR(100) NOT NULL,
+    BaslangicTarihi DATETIME NOT NULL,
+    BitisTarihi DATETIME,
+    Aciklama TEXT,
+    KullaniciID INT NOT NULL,
+    FOREIGN KEY (MusteriID) REFERENCES Musteriler(MusteriID),
+    FOREIGN KEY (KullaniciID) REFERENCES Kullanicilar(KullaniciID)
+);
+```
+
+---
+
+### **7. Kullanıcılar Tablosu**
+```sql
+CREATE TABLE Kullanicilar (
+    KullaniciID INT PRIMARY KEY AUTO_INCREMENT,
+    Ad VARCHAR(100) NOT NULL,
+    Soyad VARCHAR(100) NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    SifreHash VARCHAR(255) NOT NULL,
+    RolID INT NOT NULL,
+    FOREIGN KEY (RolID) REFERENCES Roller(RolID)
+);
+```
+
+---
+
+### **8. Roller Tablosu**
+```sql
+CREATE TABLE Roller (
+    RolID INT PRIMARY KEY AUTO_INCREMENT,
+    RolAdi VARCHAR(100) UNIQUE NOT NULL,
+    Yetkiler TEXT
+);
+```
+
+---
+
+### **9. Fırsatlar Tablosu**
+```sql
+CREATE TABLE Firsatlar (
+    FirsatID INT PRIMARY KEY AUTO_INCREMENT,
+    MusteriID INT NOT NULL,
+    Baslik VARCHAR(200) NOT NULL,
+    BeklenenKapanisTarihi DATE,
+    AsamaID INT NOT NULL,
+    Olasilik DECIMAL(5,2) CHECK (Olasilik >= 0 AND Olasilik <= 100),
+    FOREIGN KEY (MusteriID) REFERENCES Musteriler(MusteriID),
+    FOREIGN KEY (AsamaID) REFERENCES Asamalar(AsamaID)
+);
+```
+
+---
+
+### **10. Aşamalar Tablosu**
+```sql
+CREATE TABLE Asamalar (
+    AsamaID INT PRIMARY KEY AUTO_INCREMENT,
+    AsamaAdi VARCHAR(100) NOT NULL,
+    Sira INT NOT NULL
+);
+```
+
+---
+
+### **11. TeklifDosyaları Tablosu**
+```sql
+CREATE TABLE TeklifDosyalari (
+    DosyaID INT PRIMARY KEY AUTO_INCREMENT,
+    TeklifID INT NOT NULL,
+    DosyaAdi VARCHAR(255) NOT NULL,
+    DosyaYolu VARCHAR(255) NOT NULL,
+    YuklemeTarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (TeklifID) REFERENCES Teklifler(TeklifID)
+);
+```
+
+---
+
+### **12. İşlemGeçmişi Tablosu**
+```sql
+CREATE TABLE IslemGecmisi (
+    LogID INT PRIMARY KEY AUTO_INCREMENT,
+    TabloAdi VARCHAR(100) NOT NULL,
+    KayitID INT NOT NULL,
+    DegisiklikDetayi TEXT NOT NULL,
+    Tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KullaniciID INT NOT NULL,
+    FOREIGN KEY (KullaniciID) REFERENCES Kullanicilar(KullaniciID)
+);
+```
+
+---
+
+### **İndeksler (Performans İçin)**
+```sql
+-- Müşteriler Tablosu
+CREATE INDEX idx_Musteri_Ad ON Musteriler(Ad);
+CREATE INDEX idx_Musteri_Email ON Musteriler(Email);
+
+-- Teklifler Tablosu
+CREATE INDEX idx_Teklif_Numarasi ON Teklifler(TeklifNumarasi);
+CREATE INDEX idx_Teklif_Durum ON Teklifler(DurumID);
+
+-- Etkinlikler Tablosu
+CREATE INDEX idx_Etkinlik_Tarih ON Etkinlikler(BaslangicTarihi);
+```
+
+---
+
+### **Örnek Senaryo: Teklif Oluşturma**
+```sql
+-- Müşteri ekle
+INSERT INTO Musteriler (MusteriTipi, Ad, Soyad, Email) 
+VALUES ('Bireysel', 'Ahmet', 'Yılmaz', 'ahmet@example.com');
+
+-- Teklif ekle
+INSERT INTO Teklifler (MusteriID, TeklifNumarasi, Baslik, DurumID, ToplamTutar)
+VALUES (1, 'T-2023-001', 'Web Sitesi Geliştirme', 1, 15000.00);
+
+-- Teklif kalemleri ekle
+INSERT INTO TeklifKalemleri (TeklifID, UrunAdi, Miktar, BirimFiyat)
+VALUES (1, 'Frontend Geliştirme', 1, 10000.00),
+       (1, 'Backend Geliştirme', 1, 5000.00);
+
+
+// ... existing code ...
+
+### **13. Dosyalar Tablosu (Genel Dosya Yönetimi İçin)**
+CREATE TABLE Dosyalar (
+    DosyaID INT PRIMARY KEY AUTO_INCREMENT,
+    DosyaAdi VARCHAR(255) NOT NULL,
+    DosyaYolu VARCHAR(255) NOT NULL,
+    DosyaTuru VARCHAR(50) NOT NULL,
+    Boyut BIGINT NOT NULL,
+    YuklemeTarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KullaniciID INT NOT NULL,
+    FOREIGN KEY (KullaniciID) REFERENCES Kullanicilar(KullaniciID)
+);
+
+### **14. MusteriDosyalari Tablosu**
+CREATE TABLE MusteriDosyalari (
+    MusteriDosyaID INT PRIMARY KEY AUTO_INCREMENT,
+    MusteriID INT NOT NULL,
+    DosyaID INT NOT NULL,
+    FOREIGN KEY (MusteriID) REFERENCES Musteriler(MusteriID),
+    FOREIGN KEY (DosyaID) REFERENCES Dosyalar(DosyaID)
+);
+
+### **15. EtkinlikDosyalari Tablosu**
+CREATE TABLE EtkinlikDosyalari (
+    EtkinlikDosyaID INT PRIMARY KEY AUTO_INCREMENT,
+    EtkinlikID INT NOT NULL,
+    DosyaID INT NOT NULL,
+    FOREIGN KEY (EtkinlikID) REFERENCES Etkinlikler(EtkinlikID),
+    FOREIGN KEY (DosyaID) REFERENCES Dosyalar(DosyaID)
+);
+
+// ... existing TeklifDosyalari tablosu ...
+
+### **İndeksler (Performans İçin)**
+// ... existing indexes ...
+
+CREATE INDEX idx_Dosya_YuklemeTarihi ON Dosyalar(YuklemeTarihi);
+CREATE INDEX idx_MusteriDosya_MusteriID ON MusteriDosyalari(MusteriID);
+CREATE INDEX idx_EtkinlikDosya_EtkinlikID ON EtkinlikDosyalari(EtkinlikID);
+
+### **Örnek Senaryo: Dosya Yükleme ve İlişkilendirme**
+
+-- Dosya ekle
+INSERT INTO Dosyalar (DosyaAdi, DosyaYolu, DosyaTuru, Boyut, KullaniciID)
+VALUES ('sözlesme.pdf', '/uploads/2023/sözlesme.pdf', 'application/pdf', 102400, 1);
+
+-- Müşteriye dosya ilişkilendir
+INSERT INTO MusteriDosyalari (MusteriID, DosyaID)
+VALUES (1, 1);
+
+-- Etkinliğe dosya ilişkilendir
+INSERT INTO EtkinlikDosyalari (EtkinlikID, DosyaID)
+VALUES (1, 1);
+
+-- Teklife dosya ilişkilendir
+INSERT INTO TeklifDosyalari (TeklifID, DosyaAdi, DosyaYolu)
+VALUES (1, 'teklif.pdf', '/uploads/2023/teklif.pdf');
+
+
+### **Dosyaları Listeleme Örneği**
+
+-- Bir müşteriye ait dosyaları listele
+SELECT d.* 
+FROM Dosyalar d
+JOIN MusteriDosyalari md ON d.DosyaID = md.DosyaID
+WHERE md.MusteriID = 1;
+
+-- Bir etkinliğe ait dosyaları listele
+SELECT d.* 
+FROM Dosyalar d
+JOIN EtkinlikDosyalari ed ON d.DosyaID = ed.DosyaID
+WHERE ed.EtkinlikID = 1;
+
+-- Bir teklife ait dosyaları listele
+SELECT * 
+FROM TeklifDosyalari
+WHERE TeklifID = 1;

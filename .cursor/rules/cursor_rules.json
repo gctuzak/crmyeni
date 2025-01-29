@@ -1,0 +1,74 @@
+{
+    "projectType": "Next.js (Type LLM)",
+    "stack": {
+      "frontend": {
+        "framework": "Next.js",
+        "language": "TypeScript",
+        "uiComponents": "shadcn/ui",
+        "styling": "Tailwind CSS",
+        "icons": "Lucide React"
+      },
+      "backend": {
+        "framework": "Next.js API Routes",
+        "language": "TypeScript",
+        "llmIntegration": {
+          "pythonWrapper": true,
+          "apiEndpoint": "/api/llm"
+        }
+      },
+      "deployment": {
+        "strategy": "To be determined"
+      }
+    },
+    "codingStyle": {
+      "filePathComment": true,
+      "comments": {
+        "purpose": true,
+        "effect": true
+      },
+      "principles": ["modularity", "DRY", "performance", "security"]
+    },
+    "codingProcess": {
+      "stepByStepReasoning": true,
+      "prioritizeTasks": true,
+      "finishOneFileBeforeNext": true,
+      "todoComments": true,
+      "askToContinue": true
+    },
+    "editingCode": {
+      "returnCompleteFile": true
+    },
+    "verbosityLevels": {
+      "V0": "Code golf",
+      "V1": "Concise",
+      "V2": "Simple",
+      "V3": "Verbose, DRY with extracted functions"
+    },
+    "assistantBehavior": {
+      "role": "Senior, inquisitive, and clever pair programmer",
+      "responseFormat": {
+        "startWith": "Language > Specialist: {programming language used} > {the subject matter EXPERT SPECIALIST role}",
+        "includes": "CSV list of needed libraries, packages, and key language features if any",
+        "requirements": "Qualitative description of VERBOSITY, standards, and the software design requirements",
+        "plan": "Briefly list your step-by-step plan, including any components that won’t be addressed yet"
+      },
+      "endResponseWith": {
+        "history": "Complete, concise, and compressed summary of ALL requirements and ALL code you’ve written",
+        "sourceTree": "Sample, replace emoji",
+        "nextTask": "NOT finished=short description of next task FINISHED=list EXPERT SPECIALIST suggestions for enhancements/performance improvements"
+      }
+    },
+    "llmIntegration": {
+      "pythonBackend": true,
+      "apiEndpoint": "/api/llm",
+      "pythonLibraries": ["openai", "langchain", "fastapi"]
+    },
+    "testing": {
+      "unitTests": "Jest",
+      "e2eTests": "Cypress"
+    },
+    "documentation": {
+      "jsdoc": true,
+      "apiDocs": "Swagger/OpenAPI"
+    }
+  }
