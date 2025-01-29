@@ -3,25 +3,38 @@
 import { PrismaClient } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { MusteriForm, IlgiliKisiForm } from "../validations/musteri"
-import { requireAuth } from "../auth"
+import { getUser } from "./auth"
 
 const prisma = new PrismaClient()
 
 export async function getMusteriler() {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
     if (!user) {
       console.error("Kullanıcı bilgileri alınamadı")
       return { error: "Oturum açmış kullanıcı bulunamadı." }
     }
 
-    console.log("Müşteriler getiriliyor, kullanıcı:", user.id)
+    console.log("Müşteriler getiriliyor, kullanıcı:", user.id, "rol:", user.rolId)
     const musteriler = await prisma.musteriler.findMany({
-      where: {
-        kullaniciId: user.id,
-      },
       include: {
         ilgiliKisiler: true,
+        temsilci: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            email: true,
+          },
+        },
+        kullanici: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
         kayitTarihi: 'desc',
@@ -40,15 +53,28 @@ export async function getMusteriler() {
 
 export async function getMusteri(id: number) {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
 
     const musteri = await prisma.musteriler.findFirst({
-      where: { 
-        id,
-        kullaniciId: user.id,
-      },
+      where: { id },
       include: {
         ilgiliKisiler: true,
+        temsilci: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            email: true,
+          },
+        },
+        kullanici: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            email: true,
+          },
+        },
       },
     })
 
@@ -64,7 +90,10 @@ export async function getMusteri(id: number) {
 
 export async function createMusteri(data: MusteriForm) {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
 
     const musteri = await prisma.musteriler.create({
       data: {
@@ -83,9 +112,9 @@ export async function createMusteri(data: MusteriForm) {
         adres: data.adres,
         kayitTarihi: new Date(),
         kullaniciId: user.id,
-        ...(data.temsilciId && {
+        ...(data.temsilciId && user.rolId === 1 ? { // Sadece admin temsilci atayabilir
           temsilciId: data.temsilciId,
-        }),
+        } : {}),
       },
     })
     revalidatePath("/musteriler")
@@ -102,18 +131,23 @@ export async function createMusteri(data: MusteriForm) {
 
 export async function updateMusteri(id: number, data: MusteriForm) {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
 
-    // Önce müşterinin bu kullanıcıya ait olup olmadığını kontrol et
-    const mevcutMusteri = await prisma.musteriler.findFirst({
-      where: {
-        id,
-        kullaniciId: user.id,
-      },
+    // Müşteriyi bul
+    const mevcutMusteri = await prisma.musteriler.findUnique({
+      where: { id },
     })
 
     if (!mevcutMusteri) {
-      return { error: "Müşteri bulunamadı veya bu işlem için yetkiniz yok." }
+      return { error: "Müşteri bulunamadı." }
+    }
+
+    // Temsilci değişikliği varsa ve kullanıcı admin değilse engelle
+    if (data.temsilciId !== mevcutMusteri.temsilciId && user.rolId !== 1) {
+      return { error: "Müşteri temsilcisini değiştirme yetkiniz yok." }
     }
 
     const musteri = await prisma.musteriler.update({
@@ -140,9 +174,9 @@ export async function updateMusteri(id: number, data: MusteriForm) {
         telefon: data.telefon,
         email: data.email,
         adres: data.adres,
-        ...(data.temsilciId && {
+        ...(data.temsilciId && user.rolId === 1 ? { // Sadece admin temsilci atayabilir
           temsilciId: data.temsilciId,
-        }),
+        } : {}),
       },
     })
     revalidatePath("/musteriler")
@@ -160,18 +194,23 @@ export async function updateMusteri(id: number, data: MusteriForm) {
 
 export async function deleteMusteri(id: number) {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
 
-    // Önce müşterinin bu kullanıcıya ait olup olmadığını kontrol et
-    const mevcutMusteri = await prisma.musteriler.findFirst({
-      where: {
-        id,
-        kullaniciId: user.id,
-      },
+    // Müşteriyi bul
+    const mevcutMusteri = await prisma.musteriler.findUnique({
+      where: { id },
     })
 
     if (!mevcutMusteri) {
-      return { error: "Müşteri bulunamadı veya bu işlem için yetkiniz yok." }
+      return { error: "Müşteri bulunamadı." }
+    }
+
+    // Sadece kaydeden kullanıcı veya admin silebilir
+    if (mevcutMusteri.kullaniciId !== user.id && user.rolId !== 1) {
+      return { error: "Bu müşteriyi silme yetkiniz yok." }
     }
 
     await prisma.musteriler.delete({
@@ -186,18 +225,18 @@ export async function deleteMusteri(id: number) {
 
 export async function createIlgiliKisi(musteriId: number, data: IlgiliKisiForm) {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
 
-    // Önce müşterinin bu kullanıcıya ait olup olmadığını kontrol et
-    const musteri = await prisma.musteriler.findFirst({
-      where: {
-        id: musteriId,
-        kullaniciId: user.id,
-      },
+    // Müşteriyi bul
+    const musteri = await prisma.musteriler.findUnique({
+      where: { id: musteriId },
     })
 
     if (!musteri) {
-      return { error: "Müşteri bulunamadı veya bu işlem için yetkiniz yok." }
+      return { error: "Müşteri bulunamadı." }
     }
 
     const ilgiliKisi = await prisma.ilgiliKisiler.create({
@@ -250,7 +289,10 @@ export async function deleteIlgiliKisi(id: number) {
 
 export async function updateMusteriTemsilcisi(musteriId: number, temsilciId: number | null) {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
 
     // Kullanıcının admin olup olmadığını kontrol et
     if (user.rolId !== 1) { // Admin rolü ID'si 1 olarak varsayıyoruz
@@ -289,7 +331,10 @@ export async function updateMusteriTemsilcisi(musteriId: number, temsilciId: num
 
 export async function getKullanicilar() {
   try {
-    const user = await requireAuth()
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
 
     // Kullanıcının admin olup olmadığını kontrol et
     if (user.rolId !== 1) { // Admin rolü ID'si 1 olarak varsayıyoruz
@@ -317,5 +362,101 @@ export async function getKullanicilar() {
       console.error("Stack trace:", error.stack)
     }
     return { error: "Kullanıcılar yüklenirken bir hata oluştu." }
+  }
+}
+
+export async function searchMusteriler(query: string) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      console.error("Kullanıcı bilgileri alınamadı")
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    if (query.length < 3) {
+      return { musteriler: [] }
+    }
+
+    const musteriler = await prisma.musteriler.findMany({
+      where: {
+        OR: [
+          // Bireysel müşteri araması
+          {
+            AND: [
+              { musteriTipi: "BIREYSEL" },
+              {
+                OR: [
+                  { ad: { contains: query, mode: 'insensitive' } },
+                  { soyad: { contains: query, mode: 'insensitive' } },
+                  { tcKimlik: { contains: query } },
+                ],
+              },
+            ],
+          },
+          // Kurumsal müşteri araması
+          {
+            AND: [
+              { musteriTipi: "KURUMSAL" },
+              {
+                OR: [
+                  { firmaAdi: { contains: query, mode: 'insensitive' } },
+                  { vergiNo: { contains: query } },
+                ],
+              },
+            ],
+          },
+          // Ortak alan araması
+          {
+            OR: [
+              { telefon: { contains: query } },
+              { email: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+          // İlgili kişi araması
+          {
+            ilgiliKisiler: {
+              some: {
+                OR: [
+                  { ad: { contains: query, mode: 'insensitive' } },
+                  { soyad: { contains: query, mode: 'insensitive' } },
+                  { unvan: { contains: query, mode: 'insensitive' } },
+                  { telefon: { contains: query } },
+                  { email: { contains: query, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        ilgiliKisiler: true,
+        temsilci: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            email: true,
+          },
+        },
+        kullanici: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            email: true,
+          },
+        },
+      },
+      take: 10, // En fazla 10 sonuç göster
+    })
+
+    return { musteriler }
+  } catch (error) {
+    console.error("Müşteri araması yapılırken hata oluştu:", error)
+    if (error instanceof Error) {
+      console.error("Hata detayı:", error.message)
+      console.error("Stack trace:", error.stack)
+    }
+    return { error: "Müşteri araması yapılırken bir hata oluştu." }
   }
 } 

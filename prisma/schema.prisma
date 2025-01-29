@@ -106,6 +106,7 @@ model Kullanicilar {
   soyad           String        @map("Soyad") @db.VarChar(100)
   email           String        @unique @map("Email") @db.VarChar(100)
   sifreHash       String        @map("SifreHash") @db.VarChar(255)
+  clerkId         String?       @unique @map("ClerkID") @db.VarChar(100)
   rolId           Int           @map("RolID")
   rol             Roller        @relation(fields: [rolId], references: [id])
   kayitliMusteriler Musteriler[] @relation("KaydedenKullanici")

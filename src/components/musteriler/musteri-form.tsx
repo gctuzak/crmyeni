@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
@@ -7,27 +8,66 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { musteriSchema, type MusteriForm } from "@/lib/validations/musteri"
-import { createMusteri, updateMusteri } from "@/lib/actions/musteri"
+import { createMusteri, updateMusteri, getKullanicilar } from "@/lib/actions/musteri"
+import type { Kullanicilar } from "@prisma/client"
 
 interface MusteriFormProps {
   initialData?: MusteriForm & { id: number }
+  currentUser: {
+    id: number
+    rolId: number
+  }
 }
 
-export function MusteriForm({ initialData }: MusteriFormProps) {
+export function MusteriForm({ initialData, currentUser }: MusteriFormProps) {
   const router = useRouter()
+  const [kullanicilar, setKullanicilar] = useState<Kullanicilar[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isManager, setIsManager] = useState(false)
+
   const form = useForm<MusteriForm>({
     resolver: zodResolver(musteriSchema),
     defaultValues: initialData || {
       musteriTipi: "BIREYSEL",
+      temsilciId: currentUser.id, // Varsayılan olarak kendisi
     },
   })
 
   const musteriTipi = form.watch("musteriTipi")
 
+  // Kullanıcı rollerini kontrol et
+  useEffect(() => {
+    if (currentUser?.rolId === 1) {
+      setIsAdmin(true)
+    } else if (currentUser?.rolId === 2) {
+      setIsManager(true)
+    }
+
+    // Admin veya yönetici ise kullanıcıları getir
+    if (currentUser?.rolId === 1 || currentUser?.rolId === 2) {
+      getKullanicilar().then((result) => {
+        if (result.kullanicilar) {
+          setKullanicilar(result.kullanicilar)
+        }
+      })
+    }
+  }, [currentUser])
+
   async function onSubmit(data: MusteriForm) {
     try {
+      // Admin veya yönetici değilse kendisi temsilci olur
+      if (!isAdmin && !isManager) {
+        data.temsilciId = currentUser.id
+      }
+
       if (initialData) {
         const result = await updateMusteri(initialData.id, data)
         if (result.error) {
@@ -190,6 +230,35 @@ export function MusteriForm({ initialData }: MusteriFormProps) {
             placeholder="Adres bilgileri"
             rows={4}
           />
+        </div>
+
+        {/* Müşteri temsilcisi alanı */}
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="temsilciId">Müşteri Temsilcisi</Label>
+          {(isAdmin || isManager) ? (
+            <Select
+              defaultValue={form.getValues("temsilciId")?.toString()}
+              onValueChange={(value) => form.setValue("temsilciId", parseInt(value))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Müşteri temsilcisi seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {kullanicilar.map((kullanici) => (
+                  <SelectItem key={kullanici.id} value={kullanici.id.toString()}>
+                    {kullanici.ad} {kullanici.soyad}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              id="temsilciId"
+              value={currentUser?.id?.toString() || ""}
+              disabled
+              className="bg-gray-100"
+            />
+          )}
         </div>
       </div>
 

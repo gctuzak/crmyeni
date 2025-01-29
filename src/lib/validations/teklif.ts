@@ -3,7 +3,7 @@ import * as z from "zod"
 export const teklifKalemiSchema = z.object({
   urunAdi: z.string().min(1, "Ürün adı zorunludur"),
   miktar: z.number().min(1, "Miktar en az 1 olmalıdır"),
-  birim: z.string().min(1, "Birim seçimi zorunludur"),
+  birim: z.string().min(1, "Birim zorunludur"),
   birimFiyat: z.number().min(0, "Birim fiyat 0'dan büyük olmalıdır"),
   kdvOrani: z.number().min(0, "KDV oranı 0'dan büyük olmalıdır"),
   aciklama: z.string().optional(),
@@ -13,12 +13,13 @@ export const teklifSchema = z.object({
   musteriId: z.number({
     required_error: "Müşteri seçimi zorunludur",
   }),
+  ilgiliKisiId: z.number().optional(),
   baslik: z.string().min(1, "Başlık zorunludur"),
   aciklama: z.string().optional(),
-  paraBirimi: z.string().min(1, "Para birimi seçimi zorunludur"),
-  sonGecerlilikTarihi: z.string().min(1, "Son geçerlilik tarihi zorunludur"),
-  kullaniciId: z.number({
-    required_error: "Kullanıcı seçimi zorunludur",
+  paraBirimi: z.string().min(1, "Para birimi zorunludur"),
+  durum: z.string().min(1, "Durum zorunludur"),
+  sonGecerlilikTarihi: z.date({
+    required_error: "Son geçerlilik tarihi zorunludur",
   }),
   notlar: z.string().optional(),
   teklifKalemleri: z.array(teklifKalemiSchema).min(1, "En az bir kalem eklemelisiniz"),

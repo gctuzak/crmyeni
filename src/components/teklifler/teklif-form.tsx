@@ -1,64 +1,97 @@
 "use client"
 
-import { useFieldArray, useForm } from "react-hook-form"
+import { useState, useEffect } from "react"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { teklifSchema, type TeklifForm as TeklifFormType, PARA_BIRIMLERI, BIRIMLER, KDV_ORANLARI } from "@/lib/validations/teklif"
-import { createTeklif, updateTeklif } from "@/lib/actions/teklif"
-import { Plus, Trash2 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { MusteriSecici } from "./musteri-secici"
+import { IlgiliKisiSecici } from "./ilgili-kisi-secici"
+import { TeklifKalemleri } from "./teklif-kalemleri"
+import { teklifSchema, type TeklifForm } from "@/lib/validations/teklif"
+import { createTeklif, updateTeklif, generateTeklifNo } from "@/lib/actions/teklif"
+import { PARA_BIRIMLERI, TEKLIF_DURUMLARI } from "@/lib/validations/teklif"
+import type { Musteriler, IlgiliKisiler } from "@prisma/client"
+import { getMusteri } from "@/lib/actions/musteri"
 
 interface TeklifFormProps {
-  initialData?: TeklifFormType & { id: number }
+  initialData?: TeklifForm & { id: number }
+  currentUser: {
+    id: number
+    rolId: number
+  }
 }
 
-export function TeklifForm({ initialData }: TeklifFormProps) {
+export function TeklifForm({ initialData, currentUser }: TeklifFormProps) {
   const router = useRouter()
-  const form = useForm<TeklifFormType>({
+  const [selectedMusteri, setSelectedMusteri] = useState<(Musteriler & {
+    ilgiliKisiler: IlgiliKisiler[]
+  }) | null>(null)
+  const [teklifNo, setTeklifNo] = useState<string>("")
+
+  const form = useForm<TeklifForm>({
     resolver: zodResolver(teklifSchema),
     defaultValues: initialData || {
       musteriId: undefined,
+      ilgiliKisiId: undefined,
       baslik: "",
       aciklama: "",
       paraBirimi: "TRY",
-      sonGecerlilikTarihi: "",
-      kullaniciId: 1, // TODO: Gerçek kullanıcı ID'sini kullan
+      durum: "Taslak",
+      sonGecerlilikTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
       notlar: "",
-      teklifKalemleri: [
-        {
-          urunAdi: "",
-          miktar: 1,
-          birim: "Adet",
-          birimFiyat: 0,
-          kdvOrani: 18,
-          aciklama: "",
-        },
-      ],
+      teklifKalemleri: [],
     },
   })
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "teklifKalemleri",
-  })
+  // Müşteri seçildiğinde teklif numarası oluştur
+  useEffect(() => {
+    async function loadTeklifNo() {
+      const musteriId = form.watch("musteriId")
+      if (musteriId) {
+        const yeniTeklifNo = await generateTeklifNo(musteriId)
+        setTeklifNo(yeniTeklifNo)
+      } else {
+        setTeklifNo("")
+      }
+    }
+    loadTeklifNo()
+  }, [form.watch("musteriId")])
 
-  async function onSubmit(data: TeklifFormType) {
+  // Sayfa yüklendiğinde veya düzenleme modunda initialData varsa müşteri bilgilerini getir
+  useEffect(() => {
+    async function loadMusteri() {
+      if (initialData?.musteriId) {
+        const { musteri } = await getMusteri(initialData.musteriId)
+        if (musteri) {
+          setSelectedMusteri(musteri)
+        }
+      }
+    }
+    loadMusteri()
+  }, [initialData?.musteriId])
+
+  async function onSubmit(data: TeklifForm) {
     try {
       if (initialData) {
         const result = await updateTeklif(initialData.id, data)
         if (result.error) {
-          // TODO: Hata gösterimi ekle
           console.error(result.error)
           return
         }
       } else {
         const result = await createTeklif(data)
         if (result.error) {
-          // TODO: Hata gösterimi ekle
           console.error(result.error)
           return
         }
@@ -71,14 +104,16 @@ export function TeklifForm({ initialData }: TeklifFormProps) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="musteriId">Müşteri</Label>
-          {/* TODO: Müşteri seçimi için combobox ekle */}
-          <Input
-            id="musteriId"
-            type="number"
-            {...form.register("musteriId", { valueAsNumber: true })}
+          <Label>Müşteri</Label>
+          <MusteriSecici
+            value={form.watch("musteriId")}
+            onValueChange={(value, musteri) => {
+              form.setValue("musteriId", value, { shouldValidate: true })
+              form.setValue("ilgiliKisiId", undefined)
+              setSelectedMusteri(musteri)
+            }}
           />
           {form.formState.errors.musteriId && (
             <p className="text-sm text-red-500">
@@ -88,10 +123,31 @@ export function TeklifForm({ initialData }: TeklifFormProps) {
         </div>
 
         <div className="space-y-2">
+          <Label>İlgili Kişi</Label>
+          <IlgiliKisiSecici
+            value={form.watch("ilgiliKisiId")}
+            onValueChange={(value) => form.setValue("ilgiliKisiId", value)}
+            ilgiliKisiler={selectedMusteri?.ilgiliKisiler || []}
+            disabled={!selectedMusteri}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Teklif No</Label>
+          <Input
+            value={teklifNo}
+            readOnly
+            disabled
+            className="bg-muted"
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="baslik">Başlık</Label>
           <Input
             id="baslik"
             {...form.register("baslik")}
+            placeholder="Teklif başlığı"
           />
           {form.formState.errors.baslik && (
             <p className="text-sm text-red-500">
@@ -101,9 +157,25 @@ export function TeklifForm({ initialData }: TeklifFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="paraBirimi">Para Birimi</Label>
+          <Label htmlFor="sonGecerlilikTarihi">Son Geçerlilik Tarihi</Label>
+          <Input
+            id="sonGecerlilikTarihi"
+            type="date"
+            {...form.register("sonGecerlilikTarihi", {
+              setValueAs: (value) => new Date(value),
+            })}
+          />
+          {form.formState.errors.sonGecerlilikTarihi && (
+            <p className="text-sm text-red-500">
+              {form.formState.errors.sonGecerlilikTarihi.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Para Birimi</Label>
           <Select
-            defaultValue={form.getValues("paraBirimi")}
+            value={form.watch("paraBirimi")}
             onValueChange={(value) => form.setValue("paraBirimi", value)}
           >
             <SelectTrigger>
@@ -125,15 +197,25 @@ export function TeklifForm({ initialData }: TeklifFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="sonGecerlilikTarihi">Son Geçerlilik Tarihi</Label>
-          <Input
-            id="sonGecerlilikTarihi"
-            type="datetime-local"
-            {...form.register("sonGecerlilikTarihi")}
-          />
-          {form.formState.errors.sonGecerlilikTarihi && (
+          <Label>Durum</Label>
+          <Select
+            value={form.watch("durum")}
+            onValueChange={(value) => form.setValue("durum", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Durum seçin" />
+            </SelectTrigger>
+            <SelectContent>
+              {TEKLIF_DURUMLARI.map((durum) => (
+                <SelectItem key={durum} value={durum}>
+                  {durum}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.formState.errors.durum && (
             <p className="text-sm text-red-500">
-              {form.formState.errors.sonGecerlilikTarihi.message}
+              {form.formState.errors.durum.message}
             </p>
           )}
         </div>
@@ -147,180 +229,23 @@ export function TeklifForm({ initialData }: TeklifFormProps) {
             rows={4}
           />
         </div>
-      </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Teklif Kalemleri</h2>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append({
-              urunAdi: "",
-              miktar: 1,
-              birim: "Adet",
-              birimFiyat: 0,
-              kdvOrani: 18,
-              aciklama: "",
-            })}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Yeni Kalem Ekle
-          </Button>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="notlar">Notlar</Label>
+          <Textarea
+            id="notlar"
+            {...form.register("notlar")}
+            placeholder="Özel notlar"
+            rows={4}
+          />
         </div>
-
-        {fields.map((field, index) => (
-          <div
-            key={field.id}
-            className="p-4 border rounded-lg space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Kalem #{index + 1}</h3>
-              {index > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => remove(index)}
-                >
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </Button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor={`teklifKalemleri.${index}.urunAdi`}>
-                  Ürün Adı
-                </Label>
-                <Input
-                  id={`teklifKalemleri.${index}.urunAdi`}
-                  {...form.register(`teklifKalemleri.${index}.urunAdi`)}
-                />
-                {form.formState.errors.teklifKalemleri?.[index]?.urunAdi && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.teklifKalemleri[index]?.urunAdi?.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`teklifKalemleri.${index}.miktar`}>
-                  Miktar
-                </Label>
-                <Input
-                  id={`teklifKalemleri.${index}.miktar`}
-                  type="number"
-                  min="1"
-                  {...form.register(`teklifKalemleri.${index}.miktar`, { valueAsNumber: true })}
-                />
-                {form.formState.errors.teklifKalemleri?.[index]?.miktar && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.teklifKalemleri[index]?.miktar?.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`teklifKalemleri.${index}.birim`}>
-                  Birim
-                </Label>
-                <Select
-                  defaultValue={form.getValues(`teklifKalemleri.${index}.birim`)}
-                  onValueChange={(value) => form.setValue(`teklifKalemleri.${index}.birim`, value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Birim seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BIRIMLER.map((birim) => (
-                      <SelectItem key={birim} value={birim}>
-                        {birim}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.teklifKalemleri?.[index]?.birim && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.teklifKalemleri[index]?.birim?.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`teklifKalemleri.${index}.birimFiyat`}>
-                  Birim Fiyat
-                </Label>
-                <Input
-                  id={`teklifKalemleri.${index}.birimFiyat`}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...form.register(`teklifKalemleri.${index}.birimFiyat`, { valueAsNumber: true })}
-                />
-                {form.formState.errors.teklifKalemleri?.[index]?.birimFiyat && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.teklifKalemleri[index]?.birimFiyat?.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`teklifKalemleri.${index}.kdvOrani`}>
-                  KDV Oranı (%)
-                </Label>
-                <Select
-                  defaultValue={form.getValues(`teklifKalemleri.${index}.kdvOrani`).toString()}
-                  onValueChange={(value) => form.setValue(`teklifKalemleri.${index}.kdvOrani`, parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="KDV oranı seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {KDV_ORANLARI.map((oran) => (
-                      <SelectItem key={oran} value={oran.toString()}>
-                        %{oran}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.teklifKalemleri?.[index]?.kdvOrani && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.teklifKalemleri[index]?.kdvOrani?.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`teklifKalemleri.${index}.aciklama`}>
-                  Açıklama
-                </Label>
-                <Input
-                  id={`teklifKalemleri.${index}.aciklama`}
-                  {...form.register(`teklifKalemleri.${index}.aciklama`)}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {form.formState.errors.teklifKalemleri && (
-          <p className="text-sm text-red-500">
-            {form.formState.errors.teklifKalemleri.message}
-          </p>
-        )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="notlar">Notlar</Label>
-        <Textarea
-          id="notlar"
-          {...form.register("notlar")}
-          placeholder="Teklif ile ilgili notlar"
-          rows={4}
-        />
-      </div>
+      <TeklifKalemleri
+        value={form.watch("teklifKalemleri")}
+        onChange={(value) => form.setValue("teklifKalemleri", value)}
+        error={form.formState.errors.teklifKalemleri?.message}
+      />
 
       <div className="flex justify-end gap-4">
         <Button
@@ -331,7 +256,7 @@ export function TeklifForm({ initialData }: TeklifFormProps) {
           İptal
         </Button>
         <Button type="submit">
-          {initialData ? "Güncelle" : "Kaydet"}
+          {initialData ? "Güncelle" : "Oluştur"}
         </Button>
       </div>
     </form>

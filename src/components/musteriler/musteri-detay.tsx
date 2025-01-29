@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { MusteriForm } from "./musteri-form"
 import { IlgiliKisiForm } from "./ilgili-kisi-form"
 import { deleteMusteri } from "@/lib/actions/musteri"
+import { useAuth } from "@/hooks/use-auth"
 import type { Musteriler, IlgiliKisiler } from "@prisma/client"
 
 interface MusteriDetayProps {
@@ -16,6 +17,7 @@ interface MusteriDetayProps {
 
 export function MusteriDetay({ musteri }: MusteriDetayProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [showIlgiliKisiForm, setShowIlgiliKisiForm] = useState(false)
 
@@ -31,11 +33,21 @@ export function MusteriDetay({ musteri }: MusteriDetayProps) {
     }
   }
 
+  if (!user) {
+    return null
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">
-          {musteri.ad} {musteri.soyad}
+          {musteri.musteriTipi === "BIREYSEL" ? (
+            <>
+              {musteri.ad} {musteri.soyad}
+            </>
+          ) : (
+            musteri.firmaAdi
+          )}
         </h1>
         <div className="flex gap-4">
           <Button
@@ -54,18 +66,36 @@ export function MusteriDetay({ musteri }: MusteriDetayProps) {
       </div>
 
       {isEditing ? (
-        <MusteriForm initialData={musteri} />
+        <MusteriForm 
+          initialData={{ ...musteri, id: musteri.id }} 
+          currentUser={{ id: user.id, rolId: user.rolId }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="space-y-4">
             <div>
               <h2 className="text-sm font-medium text-gray-500">Müşteri Tipi</h2>
-              <p className="mt-1">{musteri.musteriTipi}</p>
+              <p className="mt-1">{musteri.musteriTipi === "BIREYSEL" ? "Bireysel" : "Kurumsal"}</p>
             </div>
-            <div>
-              <h2 className="text-sm font-medium text-gray-500">Vergi No</h2>
-              <p className="mt-1">{musteri.vergiNo || "-"}</p>
-            </div>
+            {musteri.musteriTipi === "BIREYSEL" ? (
+              <>
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500">TC Kimlik</h2>
+                  <p className="mt-1">{musteri.tcKimlik || "-"}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500">Vergi Dairesi</h2>
+                  <p className="mt-1">{musteri.vergiDairesi || "-"}</p>
+                </div>
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500">Vergi No</h2>
+                  <p className="mt-1">{musteri.vergiNo || "-"}</p>
+                </div>
+              </>
+            )}
             <div>
               <h2 className="text-sm font-medium text-gray-500">Telefon</h2>
               <p className="mt-1">{musteri.telefon || "-"}</p>
