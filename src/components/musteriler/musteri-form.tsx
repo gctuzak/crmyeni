@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { musteriSchema, type MusteriForm } from "@/lib/validations/musteri"
 import { createMusteri, updateMusteri } from "@/lib/actions/musteri"
 
@@ -20,15 +20,11 @@ export function MusteriForm({ initialData }: MusteriFormProps) {
   const form = useForm<MusteriForm>({
     resolver: zodResolver(musteriSchema),
     defaultValues: initialData || {
-      musteriTipi: "",
-      ad: "",
-      soyad: "",
-      vergiNo: "",
-      telefon: "",
-      email: "",
-      adres: "",
+      musteriTipi: "BIREYSEL",
     },
   })
+
+  const musteriTipi = form.watch("musteriTipi")
 
   async function onSubmit(data: MusteriForm) {
     try {
@@ -55,59 +51,112 @@ export function MusteriForm({ initialData }: MusteriFormProps) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="musteriTipi">Müşteri Tipi</Label>
-          <Select
-            defaultValue={form.getValues("musteriTipi")}
-            onValueChange={(value) => form.setValue("musteriTipi", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Müşteri tipi seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Bireysel">Bireysel</SelectItem>
-              <SelectItem value="Kurumsal">Kurumsal</SelectItem>
-            </SelectContent>
-          </Select>
-          {form.formState.errors.musteriTipi && (
-            <p className="text-sm text-red-500">
-              {form.formState.errors.musteriTipi.message}
-            </p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="musteriTipi">Müşteri Tipi</Label>
+        <Select
+          defaultValue={form.getValues("musteriTipi")}
+          onValueChange={(value) => form.setValue("musteriTipi", value as "BIREYSEL" | "KURUMSAL")}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Müşteri tipi seçin" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="BIREYSEL">Bireysel</SelectItem>
+            <SelectItem value="KURUMSAL">Kurumsal</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="ad">Ad</Label>
-          <Input
-            id="ad"
-            {...form.register("ad")}
-            placeholder="Müşteri adı"
-          />
-          {form.formState.errors.ad && (
-            <p className="text-sm text-red-500">
-              {form.formState.errors.ad.message}
-            </p>
-          )}
-        </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {musteriTipi === "BIREYSEL" ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="ad">Ad</Label>
+              <Input
+                id="ad"
+                {...form.register("ad")}
+                placeholder="Müşteri adı"
+              />
+              {form.formState.errors.ad && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.ad.message}
+                </p>
+              )}
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="soyad">Soyad</Label>
-          <Input
-            id="soyad"
-            {...form.register("soyad")}
-            placeholder="Müşteri soyadı"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="soyad">Soyad</Label>
+              <Input
+                id="soyad"
+                {...form.register("soyad")}
+                placeholder="Müşteri soyadı"
+              />
+              {form.formState.errors.soyad && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.soyad.message}
+                </p>
+              )}
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="vergiNo">Vergi No</Label>
-          <Input
-            id="vergiNo"
-            {...form.register("vergiNo")}
-            placeholder="Vergi numarası"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="tcKimlik">TC Kimlik No</Label>
+              <Input
+                id="tcKimlik"
+                {...form.register("tcKimlik")}
+                placeholder="TC Kimlik numarası"
+              />
+              {form.formState.errors.tcKimlik && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.tcKimlik.message}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="firmaAdi">Firma Adı</Label>
+              <Input
+                id="firmaAdi"
+                {...form.register("firmaAdi")}
+                placeholder="Firma adı"
+              />
+              {form.formState.errors.firmaAdi && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.firmaAdi.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vergiDairesi">Vergi Dairesi</Label>
+              <Input
+                id="vergiDairesi"
+                {...form.register("vergiDairesi")}
+                placeholder="Vergi dairesi"
+              />
+              {form.formState.errors.vergiDairesi && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.vergiDairesi.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vergiNo">Vergi No</Label>
+              <Input
+                id="vergiNo"
+                {...form.register("vergiNo")}
+                placeholder="Vergi numarası"
+              />
+              {form.formState.errors.vergiNo && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.vergiNo.message}
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="telefon">Telefon</Label>

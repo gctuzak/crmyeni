@@ -10,19 +10,32 @@ generator client {
 
 model Musteriler {
   id            Int             @id @default(autoincrement()) @map("MusteriID")
-  musteriTipi   String         @map("MusteriTipi") @db.VarChar(50)
-  ad            String         @map("Ad") @db.VarChar(100)
+  musteriTipi   String         @map("MusteriTipi") @db.VarChar(50) // "BIREYSEL" veya "KURUMSAL"
+  // Bireysel müşteri alanları
+  ad            String?        @map("Ad") @db.VarChar(100)
   soyad         String?        @map("Soyad") @db.VarChar(100)
+  tcKimlik      String?        @map("TCKimlik") @db.VarChar(11)
+  // Kurumsal müşteri alanları
+  firmaAdi      String?        @map("FirmaAdi") @db.VarChar(200)
+  vergiDairesi  String?        @map("VergiDairesi") @db.VarChar(100)
   vergiNo       String?        @map("VergiNo") @db.VarChar(20)
+  // Ortak alanlar
   telefon       String?        @map("Telefon") @db.VarChar(20)
   email         String?        @map("Email") @db.VarChar(100)
   adres         String?        @map("Adres") @db.Text
   kayitTarihi   DateTime       @default(now()) @map("KayitTarihi")
+  // İlişkiler
+  kullaniciId   Int           @map("KullaniciID") // Kaydı oluşturan kullanıcı
+  kullanici     Kullanicilar  @relation("KaydedenKullanici", fields: [kullaniciId], references: [id])
+  temsilciId    Int?          @map("TemsilciID") // Müşteri temsilcisi
+  temsilci      Kullanicilar? @relation("MusteriTemsilcisi", fields: [temsilciId], references: [id])
   ilgiliKisiler IlgiliKisiler[]
   teklifler     Teklifler[]
   etkinlikler   Etkinlikler[]
   firsatlar     Firsatlar[]
 
+  @@index([kullaniciId])
+  @@index([temsilciId])
   @@map("Musteriler")
 }
 
@@ -88,16 +101,18 @@ model Roller {
 }
 
 model Kullanicilar {
-  id          Int           @id @default(autoincrement()) @map("KullaniciID")
-  ad          String        @map("Ad") @db.VarChar(100)
-  soyad       String        @map("Soyad") @db.VarChar(100)
-  email       String        @unique @map("Email") @db.VarChar(100)
-  sifreHash   String        @map("SifreHash") @db.VarChar(255)
-  rolId       Int           @map("RolID")
-  rol         Roller        @relation(fields: [rolId], references: [id])
-  etkinlikler Etkinlikler[]
-  teklifler   Teklifler[]
-  islemGecmisi IslemGecmisi[]
+  id              Int           @id @default(autoincrement()) @map("KullaniciID")
+  ad              String        @map("Ad") @db.VarChar(100)
+  soyad           String        @map("Soyad") @db.VarChar(100)
+  email           String        @unique @map("Email") @db.VarChar(100)
+  sifreHash       String        @map("SifreHash") @db.VarChar(255)
+  rolId           Int           @map("RolID")
+  rol             Roller        @relation(fields: [rolId], references: [id])
+  kayitliMusteriler Musteriler[] @relation("KaydedenKullanici")
+  temsilciMusteriler Musteriler[] @relation("MusteriTemsilcisi")
+  etkinlikler     Etkinlikler[]
+  teklifler       Teklifler[]
+  islemGecmisi    IslemGecmisi[]
 
   @@map("Kullanicilar")
 }
