@@ -6839,6 +6839,169 @@ _**Assistant**_
 
 
 
+Git durumu düzgün görünmüyor. Tekrar deneyelim:
+
+---
+
+_**Assistant**_
+
+```
+git status ; git log -1
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Değişiklikleri ekleyip push edelim:
+
+---
+
+_**Assistant**_
+
+```
+git add . ; git commit -m "docs: specstory güncellendi" ; git push
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Branch ismi farklı olduğu için push işlemi başarısız oldu. Doğru branch'e push edelim:
+
+---
+
+_**Assistant**_
+
+```
+git push origin main:master
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi de değişiklikleri kontrol edelim:
+
+---
+
+_**Assistant**_
+
+```
+git diff HEAD~5 HEAD --name-only
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Son değişiklikleri daha detaylı görelim:
+
+---
+
+_**Assistant**_
+
+```
+git log -p -2
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Değişiklikler başarıyla GitHub'a push edilmiş. Özetleyeyim:
+
+1. Yeni eklenen dosyalar:
+   - Teklif modülü bileşenleri
+   - İlgili kişi seçici
+   - Müşteri arama ve detay bileşenleri
+   - Yeni migration dosyaları
+
+2. Güncellenen dosyalar:
+   - `package.json` (versiyon 0.3.0)
+   - `prisma/schema.prisma`
+   - Müşteri modülü bileşenleri
+   - Layout ve sayfa dosyaları
+
+3. Commit'ler:
+   - "feat: teklif modülü eklendi"
+   - "docs: specstory güncellendi"
+
+4. Branch durumu:
+   - Local `main` branch'i
+   - Remote `master` branch'ine push edildi
+   - Tüm değişiklikler senkronize
+
+Başka bir kontrol yapmak ister misiniz?
+
+---
+
+_**User**_
+
+şimdi detaylı bir dokümentasyon oluştur. kullanılan database yapısını ilişkileri fonksiyonları aksiyonları kontrolleri dokümente et
+
+---
+
+_**Assistant**_
+
+Tamam, detaylı bir dokümentasyon oluşturalım. Önce bir `docs` klasörü oluşturup içine dokümanları ekleyelim:
+
+---
+
+_**Assistant**_
+
+```
+undefined
+```
+
+---
+
+_**Assistant**_
+
+
+
 ---
 
 
