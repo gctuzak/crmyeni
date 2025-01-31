@@ -7,7 +7,7 @@ import { UserNav } from "@/components/user-nav"
 const pageTitles: { [key: string]: string } = {
   "/": "Dashboard",
   "/musteriler": "Müşteriler",
-  "/etkinlikler": "Etkinlikler",
+  "/etkinlikler": "Aktivite ve Görevler",
   "/teklifler": "Teklifler",
   "/firsatlar": "Fırsatlar",
   "/raporlar": "Raporlar"

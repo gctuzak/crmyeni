@@ -23,7 +23,7 @@ const menuItems = [
     icon: Users
   },
   {
-    title: "Etkinlikler",
+    title: "Aktivite ve Görevler",
     href: "/etkinlikler",
     icon: CalendarClock
   },

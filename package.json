@@ -1,6 +1,6 @@
 {
   "name": "yeni_crm",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "prepare": "husky install",
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {

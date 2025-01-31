@@ -158,35 +158,46 @@ async function main() {
     },
   })
 
-  // Etkinlikler oluştur
-  await prisma.etkinlikler.createMany({
-    data: [
-      {
-        musteriId: kurumsal1.id,
-        etkinlikTipi: 'TOPLANTI',
-        baslangicTarihi: new Date('2024-02-01T10:00:00Z'),
-        bitisTarihi: new Date('2024-02-01T11:30:00Z'),
-        aciklama: 'Yeni proje görüşmesi',
-        kullaniciId: temsilci1.id,
-      },
-      {
-        musteriId: bireysel1.id,
-        etkinlikTipi: 'TELEFON',
-        baslangicTarihi: new Date('2024-02-02T14:00:00Z'),
-        bitisTarihi: new Date('2024-02-02T14:30:00Z'),
-        aciklama: 'Ürün bilgilendirme görüşmesi',
-        kullaniciId: temsilci1.id,
-      },
-      {
-        musteriId: kurumsal2.id,
-        etkinlikTipi: 'ZIYARET',
-        baslangicTarihi: new Date('2024-02-03T09:00:00Z'),
-        bitisTarihi: new Date('2024-02-03T10:00:00Z'),
-        aciklama: 'Şantiye ziyareti',
-        kullaniciId: temsilci2.id,
-      },
-    ],
-  })
+  // Örnek etkinlikler
+  const etkinlikler = [
+    {
+      musteriId: kurumsal1.id,
+      etkinlikTipi: "MUSTERI_ZIYARET",
+      baslangicTarihi: new Date("2024-02-01T10:00:00Z"),
+      bitisTarihi: new Date("2024-02-01T11:30:00Z"),
+      aciklama: "Yeni proje görüşmesi",
+      durum: "TAMAMLANDI",
+      oncelik: "YUKSEK",
+      kullaniciId: temsilci1.id,
+    },
+    {
+      musteriId: kurumsal1.id,
+      etkinlikTipi: "TEKLIF_VERILECEK",
+      baslangicTarihi: new Date("2024-02-05T14:00:00Z"),
+      bitisTarihi: new Date("2024-02-05T15:00:00Z"),
+      aciklama: "Yeni sistem için teklif hazırlanacak",
+      durum: "BEKLIYOR",
+      oncelik: "NORMAL",
+      kullaniciId: temsilci1.id,
+    },
+    {
+      musteriId: bireysel1.id,
+      etkinlikTipi: "TELEFON_GORUSMESI",
+      baslangicTarihi: new Date("2024-02-02T09:00:00Z"),
+      bitisTarihi: new Date("2024-02-02T09:30:00Z"),
+      aciklama: "Mevcut sistemle ilgili görüşme",
+      durum: "TAMAMLANDI",
+      oncelik: "NORMAL",
+      kullaniciId: temsilci1.id,
+    },
+  ]
+
+  // Etkinlikleri ekle
+  for (const etkinlik of etkinlikler) {
+    await prisma.etkinlikler.create({
+      data: etkinlik,
+    })
+  }
 
   // Aşamaları oluştur
   const asamalar = await prisma.asamalar.createMany({

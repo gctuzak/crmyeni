@@ -48,6 +48,7 @@ model IlgiliKisiler {
   telefon     String?   @map("Telefon") @db.VarChar(20)
   email       String?   @map("Email") @db.VarChar(100)
   musteri     Musteriler @relation(fields: [musteriId], references: [id])
+  etkinlikler Etkinlikler[] @relation("EtkinlikIlgiliKisi")
 
   @@map("IlgiliKisiler")
 }
@@ -118,17 +119,51 @@ model Kullanicilar {
   @@map("Kullanicilar")
 }
 
+enum EtkinlikTipi {
+  CARI_HESAP_BILGILERI     @map("Cari Hesap Bilgileri")
+  FATURA_KESILECEK         @map("Fatura Kesilecek")
+  GELEN_EPOSTA             @map("Gelen E-posta")
+  GIDEN_EPOSTA             @map("Giden E-posta")
+  IMALAT                   @map("İmalat")
+  ISEMRI_OLUSTURULACAK     @map("İşemri Oluşturulacak")
+  KESIF                    @map("Keşif")
+  MONTAJ                   @map("Montaj")
+  MUSTERI_ZIYARET          @map("Müşteri Ziyaret")
+  NUMUNE_GONDERIMI         @map("Numune Gönderimi")
+  PRIM_HAKEDISI           @map("Prim Hakedişi")
+  PROJE_CIZIM             @map("Proje Çizim")
+  PROJE_INCELEME          @map("Proje İnceleme")
+  SEVKIYAT                @map("Sevkiyat")
+  SIKAYET_ARIZA_SERVIS    @map("Şikayet/Arıza/Servis")
+  TAHSILAT_TAKIBI         @map("Tahsilat Takibi")
+  TEKLIF_DURUM_TAKIBI     @map("Teklif Durum Takibi")
+  TEKLIF_GONDERIM_ONAYI   @map("Teklif Gönderim Onayı")
+  TEKLIF_ONAY_TALEBI      @map("Teklif Onay Talebi")
+  TEKLIF_VERILECEK        @map("Teklif Verilecek")
+  TEKNIK_SERVIS           @map("Teknik Servis")
+  TELEFON_GORUSMESI       @map("Telefon Görüşmesi")
+  TOPLANTI                @map("Toplantı")
+  TOPLU_EPOSTA            @map("Toplu E-posta")
+}
+
 model Etkinlikler {
   id              Int          @id @default(autoincrement()) @map("EtkinlikID")
   musteriId       Int          @map("MusteriID")
-  etkinlikTipi    String       @map("EtkinlikTipi") @db.VarChar(100)
+  ilgiliKisiId    Int?         @map("IlgiliKisiID")
+  etkinlikTipi    EtkinlikTipi @map("EtkinlikTipi")
   baslangicTarihi DateTime     @map("BaslangicTarihi")
   bitisTarihi     DateTime?    @map("BitisTarihi")
   aciklama        String?      @map("Aciklama") @db.Text
+  durum           String       @map("Durum") @default("BEKLIYOR")
+  oncelik         String       @map("Oncelik") @default("NORMAL")
   kullaniciId     Int          @map("KullaniciID")
   musteri         Musteriler   @relation(fields: [musteriId], references: [id])
+  ilgiliKisi      IlgiliKisiler? @relation("EtkinlikIlgiliKisi", fields: [ilgiliKisiId], references: [id])
   kullanici       Kullanicilar @relation(fields: [kullaniciId], references: [id])
 
+  @@index([musteriId])
+  @@index([ilgiliKisiId])
+  @@index([kullaniciId])
   @@map("Etkinlikler")
 }
 

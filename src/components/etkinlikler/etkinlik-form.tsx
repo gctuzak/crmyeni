@@ -1,47 +1,67 @@
 "use client"
 
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { etkinlikSchema, type EtkinlikForm as EtkinlikFormType, ETKINLIK_TIPLERI } from "@/lib/validations/etkinlik"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { MusteriSecici } from "@/components/teklifler/musteri-secici"
+import { IlgiliKisiSecici } from "@/components/teklifler/ilgili-kisi-secici"
+import { etkinlikSchema, type EtkinlikForm } from "@/lib/validations/etkinlik"
 import { createEtkinlik, updateEtkinlik } from "@/lib/actions/etkinlik"
+import { ETKINLIK_TIPLERI, ETKINLIK_DURUMLARI, ETKINLIK_ONCELIKLERI } from "@/lib/validations/etkinlik"
+import type { Musteriler, IlgiliKisiler } from "@prisma/client"
 
 interface EtkinlikFormProps {
-  initialData?: EtkinlikFormType & { id: number }
+  initialData?: EtkinlikForm & { id: number }
+  currentUser: {
+    id: number
+    rolId: number
+  }
 }
 
-export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
+export function EtkinlikForm({ initialData, currentUser }: EtkinlikFormProps) {
   const router = useRouter()
-  const form = useForm<EtkinlikFormType>({
+  const [selectedMusteri, setSelectedMusteri] = useState<(Musteriler & {
+    ilgiliKisiler: IlgiliKisiler[]
+  }) | null>(null)
+
+  const form = useForm<EtkinlikForm>({
     resolver: zodResolver(etkinlikSchema),
     defaultValues: initialData || {
       musteriId: undefined,
-      etkinlikTipi: "",
-      baslangicTarihi: "",
-      bitisTarihi: "",
+      ilgiliKisiId: undefined,
+      etkinlikTipi: undefined,
+      baslangicTarihi: new Date(),
+      bitisTarihi: undefined,
       aciklama: "",
-      kullaniciId: 1, // TODO: Gerçek kullanıcı ID'sini kullan
+      durum: "BEKLIYOR",
+      oncelik: "NORMAL",
     },
   })
 
-  async function onSubmit(data: EtkinlikFormType) {
+  async function onSubmit(data: EtkinlikForm) {
     try {
       if (initialData) {
         const result = await updateEtkinlik(initialData.id, data)
         if (result.error) {
-          // TODO: Hata gösterimi ekle
           console.error(result.error)
           return
         }
       } else {
         const result = await createEtkinlik(data)
         if (result.error) {
-          // TODO: Hata gösterimi ekle
           console.error(result.error)
           return
         }
@@ -54,14 +74,16 @@ export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="musteriId">Müşteri</Label>
-          {/* TODO: Müşteri seçimi için combobox ekle */}
-          <Input
-            id="musteriId"
-            type="number"
-            {...form.register("musteriId", { valueAsNumber: true })}
+          <Label>Müşteri</Label>
+          <MusteriSecici
+            value={form.watch("musteriId")}
+            onValueChange={(value, musteri) => {
+              form.setValue("musteriId", value, { shouldValidate: true })
+              form.setValue("ilgiliKisiId", undefined)
+              setSelectedMusteri(musteri)
+            }}
           />
           {form.formState.errors.musteriId && (
             <p className="text-sm text-red-500">
@@ -71,9 +93,19 @@ export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="etkinlikTipi">Etkinlik Tipi</Label>
+          <Label>İlgili Kişi</Label>
+          <IlgiliKisiSecici
+            value={form.watch("ilgiliKisiId")}
+            onValueChange={(value) => form.setValue("ilgiliKisiId", value)}
+            ilgiliKisiler={selectedMusteri?.ilgiliKisiler || []}
+            disabled={!selectedMusteri}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Etkinlik Tipi</Label>
           <Select
-            defaultValue={form.getValues("etkinlikTipi")}
+            value={form.watch("etkinlikTipi")}
             onValueChange={(value) => form.setValue("etkinlikTipi", value)}
           >
             <SelectTrigger>
@@ -82,7 +114,7 @@ export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
             <SelectContent>
               {ETKINLIK_TIPLERI.map((tip) => (
                 <SelectItem key={tip} value={tip}>
-                  {tip}
+                  {tip.replace(/_/g, " ")}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -99,7 +131,8 @@ export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
           <Input
             id="baslangicTarihi"
             type="datetime-local"
-            {...form.register("baslangicTarihi")}
+            value={form.watch("baslangicTarihi") ? format(form.watch("baslangicTarihi"), "yyyy-MM-dd'T'HH:mm") : ""}
+            onChange={(e) => form.setValue("baslangicTarihi", new Date(e.target.value))}
           />
           {form.formState.errors.baslangicTarihi && (
             <p className="text-sm text-red-500">
@@ -113,8 +146,47 @@ export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
           <Input
             id="bitisTarihi"
             type="datetime-local"
-            {...form.register("bitisTarihi")}
+            value={form.watch("bitisTarihi") ? format(form.watch("bitisTarihi"), "yyyy-MM-dd'T'HH:mm") : ""}
+            onChange={(e) => form.setValue("bitisTarihi", e.target.value ? new Date(e.target.value) : undefined)}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Durum</Label>
+          <Select
+            value={form.watch("durum")}
+            onValueChange={(value) => form.setValue("durum", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Durum seçin" />
+            </SelectTrigger>
+            <SelectContent>
+              {ETKINLIK_DURUMLARI.map((durum) => (
+                <SelectItem key={durum} value={durum}>
+                  {durum.replace(/_/g, " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Öncelik</Label>
+          <Select
+            value={form.watch("oncelik")}
+            onValueChange={(value) => form.setValue("oncelik", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Öncelik seçin" />
+            </SelectTrigger>
+            <SelectContent>
+              {ETKINLIK_ONCELIKLERI.map((oncelik) => (
+                <SelectItem key={oncelik} value={oncelik}>
+                  {oncelik}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2 md:col-span-2">
@@ -137,7 +209,7 @@ export function EtkinlikForm({ initialData }: EtkinlikFormProps) {
           İptal
         </Button>
         <Button type="submit">
-          {initialData ? "Güncelle" : "Kaydet"}
+          {initialData ? "Güncelle" : "Oluştur"}
         </Button>
       </div>
     </form>
