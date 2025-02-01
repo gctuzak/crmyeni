@@ -5,7 +5,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { UserNav } from "@/components/user-nav"
 
 const pageTitles: { [key: string]: string } = {
-  "/": "Dashboard",
+  "/": "Anasayfa",
   "/musteriler": "Müşteriler",
   "/etkinlikler": "Aktivite ve Görevler",
   "/teklifler": "Teklifler",

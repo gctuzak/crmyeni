@@ -83,6 +83,45 @@
   - Durum güncelleme
   - PDF oluşturma
 
+## Etkinlik Bileşenleri
+
+### Etkinlik Listesi
+- **Dosya**: `src/components/etkinlikler/etkinlik-listesi.tsx`
+- **Özellikler**:
+  - Sayfalama
+  - Sıralama
+  - Filtreler:
+    - Etkinlik tipi
+    - Durum
+    - Öncelik
+    - Müşteri
+    - İlgili kişi
+  - Renk kodlaması:
+    - Durum renkleri
+    - Öncelik renkleri
+  - Detay görünümü
+
+### Etkinlik Formu
+- **Dosya**: `src/components/etkinlikler/etkinlik-form.tsx`
+- **Özellikler**:
+  - Müşteri seçimi
+  - İlgili kişi seçimi
+  - Etkinlik tipi seçimi
+  - Tarih ve saat seçimi
+  - Durum ve öncelik seçimi
+  - Form validasyonu
+  - Otomatik kaydetme
+
+### Etkinlik Detay
+- **Dosya**: `src/components/etkinlikler/etkinlik-detay.tsx`
+- **Özellikler**:
+  - Etkinlik bilgileri
+  - Müşteri bilgileri
+  - İlgili kişi bilgileri
+  - Durum güncelleme
+  - Öncelik güncelleme
+  - Düzenleme ve silme işlemleri
+
 ## Ortak Bileşenler
 
 ### Form Bileşenleri

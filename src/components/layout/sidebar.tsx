@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   Users, 
@@ -10,10 +12,11 @@ import {
   BarChart3,
   LayoutDashboard
 } from "lucide-react"
+import { getSirketAyarlari } from "@/lib/actions/sirket"
 
 const menuItems = [
   {
-    title: "Dashboard",
+    title: "Anasayfa",
     href: "/",
     icon: LayoutDashboard
   },
@@ -46,11 +49,33 @@ const menuItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [logo, setLogo] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadLogo() {
+      const { ayarlar } = await getSirketAyarlari()
+      if (ayarlar?.logo) {
+        setLogo(ayarlar.logo)
+      }
+    }
+    loadLogo()
+  }, [])
 
   return (
     <div className="w-64 bg-white dark:bg-gray-800 h-screen fixed left-0 top-0 border-r">
       <div className="p-4 border-b">
-        <h1 className="text-2xl font-bold">CRM</h1>
+        {logo ? (
+          <div className="h-8 relative">
+            <Image
+              src={logo}
+              alt="Şirket Logosu"
+              fill
+              className="object-contain"
+            />
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold">CRM</h1>
+        )}
       </div>
       <nav className="p-4">
         <ul className="space-y-2">

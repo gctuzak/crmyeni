@@ -150,6 +150,26 @@ const teklifSchema = z.object({
 })
 ```
 
+### Etkinlik Validasyonları
+```typescript
+const etkinlikSchema = z.object({
+  musteriId: z.number({
+    required_error: "Müşteri seçimi zorunludur",
+  }),
+  ilgiliKisiId: z.number().optional(),
+  etkinlikTipi: z.enum(ETKINLIK_TIPLERI, {
+    required_error: "Etkinlik tipi seçimi zorunludur",
+  }),
+  baslangicTarihi: z.string({
+    required_error: "Başlangıç tarihi zorunludur",
+  }),
+  bitisTarihi: z.string().optional(),
+  aciklama: z.string().optional(),
+  durum: z.enum(ETKINLIK_DURUMLARI).default("BEKLIYOR"),
+  oncelik: z.enum(ETKINLIK_ONCELIKLERI).default("NORMAL"),
+})
+```
+
 ## Sabitler
 
 ### Para Birimleri
@@ -183,4 +203,60 @@ export const BIRIMLER = [
 ### KDV Oranları
 ```typescript
 export const KDV_ORANLARI = [0, 1, 8, 10, 18, 20] as const
+```
+
+### Etkinlik İşlemleri
+- **Fonksiyonlar**:
+  - `getEtkinlikler()`: Tüm etkinlikleri listeler
+  - `getEtkinlik(id: number)`: Etkinlik detaylarını getirir
+  - `getMusteriEtkinlikleri(musteriId: number)`: Müşterinin etkinliklerini listeler
+  - `createEtkinlik(data: EtkinlikForm)`: Yeni etkinlik oluşturur
+  - `updateEtkinlik(id: number, data: EtkinlikForm)`: Etkinlik günceller
+  - `deleteEtkinlik(id: number)`: Etkinlik siler
+  - `updateEtkinlikDurumu(id: number, durum: string)`: Etkinlik durumunu günceller
+  - `updateEtkinlikOnceligi(id: number, oncelik: string)`: Etkinlik önceliğini günceller
+  - `getYaklasanEtkinlikler()`: Yaklaşan etkinlikleri listeler
+
+### Etkinlik Sabitleri
+```typescript
+export const ETKINLIK_TIPLERI = [
+  "CARI_HESAP_BILGILERI",
+  "FATURA_KESILECEK",
+  "GELEN_EPOSTA",
+  "GIDEN_EPOSTA",
+  "IMALAT",
+  "ISEMRI_OLUSTURULACAK",
+  "KESIF",
+  "MONTAJ",
+  "MUSTERI_ZIYARET",
+  "NUMUNE_GONDERIMI",
+  "PRIM_HAKEDISI",
+  "PROJE_CIZIM",
+  "PROJE_INCELEME",
+  "SEVKIYAT",
+  "SIKAYET_ARIZA_SERVIS",
+  "TAHSILAT_TAKIBI",
+  "TEKLIF_DURUM_TAKIBI",
+  "TEKLIF_GONDERIM_ONAYI",
+  "TEKLIF_ONAY_TALEBI",
+  "TEKLIF_VERILECEK",
+  "TEKNIK_SERVIS",
+  "TELEFON_GORUSMESI",
+  "TOPLANTI",
+  "TOPLU_EPOSTA",
+] as const
+
+export const ETKINLIK_DURUMLARI = [
+  "BEKLIYOR",
+  "DEVAM_EDIYOR",
+  "TAMAMLANDI",
+  "IPTAL_EDILDI",
+] as const
+
+export const ETKINLIK_ONCELIKLERI = [
+  "DUSUK",
+  "NORMAL",
+  "YUKSEK",
+  "KRITIK",
+] as const
 ``` 

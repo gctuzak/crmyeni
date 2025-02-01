@@ -129,6 +129,24 @@
 - **İlişkiler**:
   - `kullanici`: İşlemi yapan kullanıcı (N:1)
 
+### Etkinlikler (Etkinlikler)
+- **Amaç**: Müşterilerle ilgili aktivite ve görevleri yönetir
+- **Alanlar**:
+  - `id`: Benzersiz tanımlayıcı (PK)
+  - `musteriId`: Müşteri ID (FK)
+  - `ilgiliKisiId`: İlgili kişi ID (FK, optional)
+  - `etkinlikTipi`: Etkinlik tipi (enum)
+  - `baslangicTarihi`: Başlangıç tarihi
+  - `bitisTarihi`: Bitiş tarihi (optional)
+  - `aciklama`: Etkinlik açıklaması
+  - `durum`: Etkinlik durumu
+  - `oncelik`: Etkinlik önceliği
+  - `kullaniciId`: Etkinliği oluşturan kullanıcı (FK)
+- **İlişkiler**:
+  - `musteri`: Bağlı olduğu müşteri (N:1)
+  - `ilgiliKisi`: Bağlı olduğu ilgili kişi (N:1)
+  - `kullanici`: Etkinliği oluşturan kullanıcı (N:1)
+
 ## İndeksler ve Kısıtlamalar
 
 ### Unique İndeksler

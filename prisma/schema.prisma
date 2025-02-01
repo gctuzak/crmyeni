@@ -115,6 +115,7 @@ model Kullanicilar {
   etkinlikler     Etkinlikler[]
   teklifler       Teklifler[]
   islemGecmisi    IslemGecmisi[]
+  guncellenenAyarlar SirketAyarlari[] @relation("GuncelleyenKullanici")
 
   @@map("Kullanicilar")
 }
@@ -211,4 +212,14 @@ model IslemGecmisi {
   kullanici         Kullanicilar  @relation(fields: [kullaniciId], references: [id])
 
   @@map("IslemGecmisi")
+}
+
+model SirketAyarlari {
+  id              Int       @id @default(autoincrement()) @map("AyarID")
+  logo            String?   @map("Logo") @db.VarChar(255)
+  guncellemeTarihi DateTime @default(now()) @map("GuncellemeTarihi")
+  guncelleyenId    Int      @map("GuncelleyenID")
+  guncelleyen      Kullanicilar @relation("GuncelleyenKullanici", fields: [guncelleyenId], references: [id])
+
+  @@map("SirketAyarlari")
 } 
