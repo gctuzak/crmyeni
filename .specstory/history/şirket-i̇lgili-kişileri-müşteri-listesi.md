@@ -14825,8 +14825,3492 @@ GitHub'daki release workflow hatalarını çözmek için `.github/workflows/rele
 _**Assistant**_
 
 ```
-undefined
+name: Release
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
 ```
+
+---
+
+_**Assistant**_
+
+
+
+Görünüşe göre `.github` klasörü henüz oluşturulmamış. Önce klasörü oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+mkdir .github ; mkdir .github/workflows
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Klasörler zaten var. Şimdi release.yml dosyasını oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+name: Release
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi de semantic-release yapılandırma dosyasını oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+{
+  "branches": ["master"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/npm",
+    "@semantic-release/github",
+    ["@semantic-release/git", {
+      "assets": ["package.json"],
+      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+    }]
+  ]
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi değişiklikleri commit edip push edelim:
+
+---
+
+_**Assistant**_
+
+```
+git add . ; git commit -m "ci: semantic release yapılandırması eklendi" ; git push origin HEAD:master
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Git komutlarını tek tek çalıştıralım:
+
+---
+
+_**Assistant**_
+
+```
+git add .
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+---
+
+_**Assistant**_
+
+```
+git commit -m "ci: semantic release yapılandırması eklendi"
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Görünüşe göre değişiklikler zaten commit edilmiş. Şimdi sadece push yapalım:
+
+---
+
+_**Assistant**_
+
+```
+git push origin HEAD:master
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. `.github/workflows/release.yml` dosyasını güncelledim:
+   - Node.js kurulumu ve cache yapılandırması
+   - GitHub token yetkilendirmeleri
+   - Semantic release çalıştırma adımı
+
+2. `.releaserc` dosyasını güncelledim:
+   - Branch adını `master` olarak değiştirdim
+   - Semantic release plugin'lerini yapılandırdım
+
+Bu değişikliklerle birlikte GitHub Actions release workflow'u düzgün çalışmalı. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+hata
+
+---
+
+_**Assistant**_
+
+Görüyorum ki Prisma şemasında `rolAdi` alanı ile ilgili bir hata var. `auth.ts` dosyasında `rolAdi` ile sorgu yapılıyor ancak şemada bu alan farklı isimde. Şemayı kontrol edelim:
+
+---
+
+_**Assistant**_
+
+
+
+---
+
+_**Assistant**_
+
+
+
+Şimdi `auth.ts` dosyasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+"use server"
+
+import { PrismaClient } from "@prisma/client"
+import { currentUser } from "@clerk/nextjs"
+
+const prisma = new PrismaClient()
+
+export async function getCurrentUser() {
+  try {
+    const clerkUser = await currentUser()
+    if (!clerkUser) {
+      return null
+    }
+
+    // Önce clerkId ile ara
+    let user = await prisma.kullanicilar.findFirst({
+      where: { clerkId: clerkUser.id },
+    })
+
+    // Bulunamadıysa e-posta ile ara
+    if (!user) {
+      const email = clerkUser.emailAddresses[0]?.emailAddress
+      if (email) {
+        user = await prisma.kullanicilar.findFirst({
+          where: { email },
+        })
+
+        // E-posta ile bulunduysa clerkId'yi güncelle
+        if (user) {
+          user = await prisma.kullanicilar.update({
+            where: { id: user.id },
+            data: { clerkId: clerkUser.id },
+          })
+          return user
+        }
+      }
+
+      // Kullanıcı hiç bulunamadıysa yeni oluştur
+      // Admin rolünü bul
+      const adminRol = await prisma.roller.findFirst({
+        where: { ad: "Admin" },
+      })
+
+      if (!adminRol) {
+        console.error("Admin rolü bulunamadı")
+        return null
+      }
+
+      // Yeni kullanıcı oluştur
+      const newUser = await prisma.kullanicilar.create({
+        data: {
+          ad: clerkUser.firstName || "Varsayılan",
+          soyad: clerkUser.lastName || "Kullanıcı",
+          email: email || "",
+          sifreHash: "geçici",
+          clerkId: clerkUser.id,
+          rolId: adminRol.id, // Test için admin rolü veriyoruz
+        },
+      })
+
+      return newUser
+    }
+
+    return user
+  } catch (error) {
+    console.error("Kullanıcı bilgileri alınırken hata oluştu:", error)
+    if (error instanceof Error) {
+      console.error("Hata detayı:", error.message)
+      console.error("Stack trace:", error.stack)
+    }
+    return null
+  }
+}
+
+// ... existing code ...
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Şimdi de `seed.ts` dosyasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = new PrismaClient()
+
+async function main() {
+  // Rolleri oluştur
+  const adminRol = await prisma.roller.upsert({
+    where: { ad: 'Admin' },
+    update: {},
+    create: {
+      ad: 'Admin',
+      yetkiler: JSON.stringify(['musteri.*', 'kullanici.*', 'teklif.*', 'etkinlik.*', 'firsat.*']),
+    },
+  })
+
+  const temsilciRol = await prisma.roller.upsert({
+    where: { ad: 'Müşteri Temsilcisi' },
+    update: {},
+    create: {
+      ad: 'Müşteri Temsilcisi',
+      yetkiler: JSON.stringify(['musteri.okuma', 'musteri.yazma', 'teklif.*', 'etkinlik.*', 'firsat.*']),
+    },
+  })
+
+// ... existing code ...
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi veritabanı şemasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+model Roller {
+  id          Int           @id @default(autoincrement()) @map("RolID")
+  ad          String        @unique @map("RolAdi") @db.VarChar(100)
+  yetkiler    String?       @map("Yetkiler") @db.Text
+  kullanicilar Kullanicilar[]
+
+  @@map("Roller")
+}
+
+// ... existing code ...
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi veritabanını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+npx prisma db push
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi test verilerini yeniden yükleyelim:
+
+---
+
+_**Assistant**_
+
+```
+npm run seed
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. `prisma/schema.prisma`:
+   - `Roller` modelinde `rolAdi` alanını `ad` olarak değiştirdim
+   - Veritabanı şemasını güncelledim
+
+2. `src/lib/auth.ts`:
+   - Admin rolü sorgusunu `rolAdi` yerine `ad` ile yapacak şekilde güncelledim
+
+3. `prisma/seed.ts`:
+   - Rol oluşturma kodunu yeni şemaya uygun şekilde güncelledim
+   - Test verilerini yeniden yükledim
+
+Bu değişikliklerle birlikte uygulama düzgün çalışmalı. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+etginlik görev dağılımı alanı boş geliyor dashboardda
+
+---
+
+_**Assistant**_
+
+Etkinlik dağılımı grafiğinin boş gelmesinin sebebi, veritabanındaki `etkinlikTipi` değerlerinin enum formatında olması ve dönüşüm yapılmaması. `dashboard.ts` dosyasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+"use server"
+
+import { PrismaClient } from "@prisma/client"
+import { getUser } from "./auth"
+
+const prisma = new PrismaClient()
+
+export async function getDashboardData() {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Son 7 gündeki etkinlikleri getir
+    const simdi = new Date()
+    const birHaftaOnce = new Date(simdi.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    const [
+      musteriSayisi,
+      bekleyenEtkinlikSayisi,
+      tamamlananEtkinlikSayisi,
+      sonEtkinlikler,
+      yaklasanEtkinlikler,
+      sonTekliflerRaw,
+      etkinlikDagilimi,
+      musteriTipiDagilimi
+    ] = await Promise.all([
+      // Toplam müşteri sayısı
+      prisma.musteriler.count(),
+
+      // Bekleyen etkinlik sayısı
+      prisma.etkinlikler.count({
+        where: {
+          durum: "BEKLIYOR"
+        }
+      }),
+
+      // Tamamlanan etkinlik sayısı (son 7 gün)
+      prisma.etkinlikler.count({
+        where: {
+          durum: "TAMAMLANDI",
+          baslangicTarihi: {
+            gte: birHaftaOnce,
+            lte: simdi
+          }
+        }
+      }),
+
+      // Son etkinlikler
+      prisma.etkinlikler.findMany({
+        take: 5,
+        orderBy: {
+          baslangicTarihi: "desc"
+        },
+        include: {
+          musteri: true,
+          ilgiliKisi: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true,
+              unvan: true
+            }
+          },
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Yaklaşan etkinlikler
+      prisma.etkinlikler.findMany({
+        where: {
+          baslangicTarihi: {
+            gte: simdi
+          },
+          durum: "BEKLIYOR"
+        },
+        take: 5,
+        orderBy: {
+          baslangicTarihi: "asc"
+        },
+        include: {
+          musteri: true,
+          ilgiliKisi: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true,
+              unvan: true
+            }
+          },
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Son teklifler
+      prisma.teklifler.findMany({
+        take: 5,
+        orderBy: {
+          olusturmaTarihi: "desc"
+        },
+        include: {
+          musteri: true,
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Etkinlik tipi dağılımı
+      prisma.etkinlikler.groupBy({
+        by: ["etkinlikTipi"],
+        _count: true,
+        where: {
+          baslangicTarihi: {
+            gte: birHaftaOnce,
+            lte: simdi
+          }
+        }
+      }),
+
+      // Müşteri tipi dağılımı
+      prisma.musteriler.groupBy({
+        by: ["musteriTipi"],
+        _count: true
+      })
+    ])
+
+    // Decimal değerleri number'a dönüştür
+    const sonTeklifler = sonTekliflerRaw.map(teklif => ({
+      ...teklif,
+      toplamTutar: Number(teklif.toplamTutar)
+    }))
+
+    return {
+      musteriSayisi,
+      bekleyenEtkinlikSayisi,
+      tamamlananEtkinlikSayisi,
+      sonEtkinlikler,
+      yaklasanEtkinlikler,
+      sonTeklifler,
+      etkinlikDagilimi: etkinlikDagilimi.map(item => ({
+        name: item.etkinlikTipi.toString().split('_').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' '),
+        value: item._count
+      })),
+      musteriTipiDagilimi: musteriTipiDagilimi.map(item => ({
+        name: item.musteriTipi === "BIREYSEL" ? "Bireysel" : "Kurumsal",
+        value: item._count
+      }))
+    }
+  } catch (error) {
+    console.error("Dashboard verileri yüklenirken hata oluştu:", error)
+    return { error: "Dashboard verileri yüklenirken bir hata oluştu." }
+  }
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. `src/lib/actions/dashboard.ts` dosyasında:
+   - Etkinlik tipi dağılımı için dönüşüm kodunu güncelledim
+   - Enum değerlerini daha okunabilir formata çevirdim
+   - Her kelimenin ilk harfini büyük yaptım
+
+Bu değişiklikle birlikte dashboard'daki etkinlik dağılımı grafiği düzgün çalışmalı. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+halen boş geliyor
+
+---
+
+_**Assistant**_
+
+
+
+Etkinlik dağılımı için sorguyu değiştirelim. Şu anda enum değerlerini doğru şekilde alamıyoruz. `dashboard.ts` dosyasını güncelleyelim:
+
+---
+
+_**Assistant**_
+
+```
+"use server"
+
+import { PrismaClient } from "@prisma/client"
+import { getUser } from "./auth"
+
+const prisma = new PrismaClient()
+
+const etkinlikTipiCevirileri: { [key: string]: string } = {
+  CARI_HESAP_BILGILERI: "Cari Hesap Bilgileri",
+  FATURA_KESILECEK: "Fatura Kesilecek",
+  GELEN_EPOSTA: "Gelen E-posta",
+  GIDEN_EPOSTA: "Giden E-posta",
+  IMALAT: "İmalat",
+  ISEMRI_OLUSTURULACAK: "İşemri Oluşturulacak",
+  KESIF: "Keşif",
+  MONTAJ: "Montaj",
+  MUSTERI_ZIYARET: "Müşteri Ziyaret",
+  NUMUNE_GONDERIMI: "Numune Gönderimi",
+  PRIM_HAKEDISI: "Prim Hakedişi",
+  PROJE_CIZIM: "Proje Çizim",
+  PROJE_INCELEME: "Proje İnceleme",
+  SEVKIYAT: "Sevkiyat",
+  SIKAYET_ARIZA_SERVIS: "Şikayet/Arıza/Servis",
+  TAHSILAT_TAKIBI: "Tahsilat Takibi",
+  TEKLIF_DURUM_TAKIBI: "Teklif Durum Takibi",
+  TEKLIF_GONDERIM_ONAYI: "Teklif Gönderim Onayı",
+  TEKLIF_ONAY_TALEBI: "Teklif Onay Talebi",
+  TEKLIF_VERILECEK: "Teklif Verilecek",
+  TEKNIK_SERVIS: "Teknik Servis",
+  TELEFON_GORUSMESI: "Telefon Görüşmesi",
+  TOPLANTI: "Toplantı",
+  TOPLU_EPOSTA: "Toplu E-posta"
+}
+
+export async function getDashboardData() {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Son 7 gündeki etkinlikleri getir
+    const simdi = new Date()
+    const birHaftaOnce = new Date(simdi.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    const [
+      musteriSayisi,
+      bekleyenEtkinlikSayisi,
+      tamamlananEtkinlikSayisi,
+      sonEtkinlikler,
+      yaklasanEtkinlikler,
+      sonTekliflerRaw,
+      etkinlikDagilimi,
+      musteriTipiDagilimi
+    ] = await Promise.all([
+      // Toplam müşteri sayısı
+      prisma.musteriler.count(),
+
+      // Bekleyen etkinlik sayısı
+      prisma.etkinlikler.count({
+        where: {
+          durum: "BEKLIYOR"
+        }
+      }),
+
+      // Tamamlanan etkinlik sayısı (son 7 gün)
+      prisma.etkinlikler.count({
+        where: {
+          durum: "TAMAMLANDI",
+          baslangicTarihi: {
+            gte: birHaftaOnce,
+            lte: simdi
+          }
+        }
+      }),
+
+      // Son etkinlikler
+      prisma.etkinlikler.findMany({
+        take: 5,
+        orderBy: {
+          baslangicTarihi: "desc"
+        },
+        include: {
+          musteri: true,
+          ilgiliKisi: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true,
+              unvan: true
+            }
+          },
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Yaklaşan etkinlikler
+      prisma.etkinlikler.findMany({
+        where: {
+          baslangicTarihi: {
+            gte: simdi
+          },
+          durum: "BEKLIYOR"
+        },
+        take: 5,
+        orderBy: {
+          baslangicTarihi: "asc"
+        },
+        include: {
+          musteri: true,
+          ilgiliKisi: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true,
+              unvan: true
+            }
+          },
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Son teklifler
+      prisma.teklifler.findMany({
+        take: 5,
+        orderBy: {
+          olusturmaTarihi: "desc"
+        },
+        include: {
+          musteri: true,
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Etkinlik tipi dağılımı
+      prisma.etkinlikler.groupBy({
+        by: ["etkinlikTipi"],
+        _count: true,
+        where: {
+          baslangicTarihi: {
+            gte: birHaftaOnce,
+            lte: simdi
+          }
+        }
+      }),
+
+      // Müşteri tipi dağılımı
+      prisma.musteriler.groupBy({
+        by: ["musteriTipi"],
+        _count: true
+      })
+    ])
+
+    // Decimal değerleri number'a dönüştür
+    const sonTeklifler = sonTekliflerRaw.map(teklif => ({
+      ...teklif,
+      toplamTutar: Number(teklif.toplamTutar)
+    }))
+
+    return {
+      musteriSayisi,
+      bekleyenEtkinlikSayisi,
+      tamamlananEtkinlikSayisi,
+      sonEtkinlikler,
+      yaklasanEtkinlikler,
+      sonTeklifler,
+      etkinlikDagilimi: etkinlikDagilimi.map(item => ({
+        name: etkinlikTipiCevirileri[item.etkinlikTipi] || item.etkinlikTipi,
+        value: item._count
+      })),
+      musteriTipiDagilimi: musteriTipiDagilimi.map(item => ({
+        name: item.musteriTipi === "BIREYSEL" ? "Bireysel" : "Kurumsal",
+        value: item._count
+      }))
+    }
+  } catch (error) {
+    console.error("Dashboard verileri yüklenirken hata oluştu:", error)
+    return { error: "Dashboard verileri yüklenirken bir hata oluştu." }
+  }
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. `src/lib/actions/dashboard.ts` dosyasında:
+   - Etkinlik tipi çevirileri için sabit bir nesne tanımladım
+   - Her enum değeri için Türkçe karşılığını ekledim
+   - Etkinlik dağılımı dönüşümünde bu çevirileri kullanacak şekilde güncelledim
+
+Bu değişiklikle birlikte dashboard'daki etkinlik dağılımı grafiği düzgün çalışmalı ve Türkçe etkinlik tipleri gösterilmeli. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+etkinlik dağılımı halen boş
+
+---
+
+_**Assistant**_
+
+
+
+Etkinlik dağılımı sorgusunu değiştirelim. Sorgu tarih aralığını kaldıralım ve tüm etkinlikleri getirelim:
+
+---
+
+_**Assistant**_
+
+```
+"use server"
+
+import { PrismaClient } from "@prisma/client"
+import { getUser } from "./auth"
+
+const prisma = new PrismaClient()
+
+const etkinlikTipiCevirileri: { [key: string]: string } = {
+  CARI_HESAP_BILGILERI: "Cari Hesap Bilgileri",
+  FATURA_KESILECEK: "Fatura Kesilecek",
+  GELEN_EPOSTA: "Gelen E-posta",
+  GIDEN_EPOSTA: "Giden E-posta",
+  IMALAT: "İmalat",
+  ISEMRI_OLUSTURULACAK: "İşemri Oluşturulacak",
+  KESIF: "Keşif",
+  MONTAJ: "Montaj",
+  MUSTERI_ZIYARET: "Müşteri Ziyaret",
+  NUMUNE_GONDERIMI: "Numune Gönderimi",
+  PRIM_HAKEDISI: "Prim Hakedişi",
+  PROJE_CIZIM: "Proje Çizim",
+  PROJE_INCELEME: "Proje İnceleme",
+  SEVKIYAT: "Sevkiyat",
+  SIKAYET_ARIZA_SERVIS: "Şikayet/Arıza/Servis",
+  TAHSILAT_TAKIBI: "Tahsilat Takibi",
+  TEKLIF_DURUM_TAKIBI: "Teklif Durum Takibi",
+  TEKLIF_GONDERIM_ONAYI: "Teklif Gönderim Onayı",
+  TEKLIF_ONAY_TALEBI: "Teklif Onay Talebi",
+  TEKLIF_VERILECEK: "Teklif Verilecek",
+  TEKNIK_SERVIS: "Teknik Servis",
+  TELEFON_GORUSMESI: "Telefon Görüşmesi",
+  TOPLANTI: "Toplantı",
+  TOPLU_EPOSTA: "Toplu E-posta"
+}
+
+export async function getDashboardData() {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Son 7 gündeki etkinlikleri getir
+    const simdi = new Date()
+    const birHaftaOnce = new Date(simdi.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    const [
+      musteriSayisi,
+      bekleyenEtkinlikSayisi,
+      tamamlananEtkinlikSayisi,
+      sonEtkinlikler,
+      yaklasanEtkinlikler,
+      sonTekliflerRaw,
+      etkinlikDagilimi,
+      musteriTipiDagilimi
+    ] = await Promise.all([
+      // Toplam müşteri sayısı
+      prisma.musteriler.count(),
+
+      // Bekleyen etkinlik sayısı
+      prisma.etkinlikler.count({
+        where: {
+          durum: "BEKLIYOR"
+        }
+      }),
+
+      // Tamamlanan etkinlik sayısı (son 7 gün)
+      prisma.etkinlikler.count({
+        where: {
+          durum: "TAMAMLANDI",
+          baslangicTarihi: {
+            gte: birHaftaOnce,
+            lte: simdi
+          }
+        }
+      }),
+
+      // Son etkinlikler
+      prisma.etkinlikler.findMany({
+        take: 5,
+        orderBy: {
+          baslangicTarihi: "desc"
+        },
+        include: {
+          musteri: true,
+          ilgiliKisi: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true,
+              unvan: true
+            }
+          },
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Yaklaşan etkinlikler
+      prisma.etkinlikler.findMany({
+        where: {
+          baslangicTarihi: {
+            gte: simdi
+          },
+          durum: "BEKLIYOR"
+        },
+        take: 5,
+        orderBy: {
+          baslangicTarihi: "asc"
+        },
+        include: {
+          musteri: true,
+          ilgiliKisi: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true,
+              unvan: true
+            }
+          },
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Son teklifler
+      prisma.teklifler.findMany({
+        take: 5,
+        orderBy: {
+          olusturmaTarihi: "desc"
+        },
+        include: {
+          musteri: true,
+          kullanici: {
+            select: {
+              id: true,
+              ad: true,
+              soyad: true
+            }
+          }
+        }
+      }),
+
+      // Etkinlik tipi dağılımı
+      prisma.etkinlikler.findMany({
+        select: {
+          etkinlikTipi: true
+        }
+      }).then(etkinlikler => {
+        const dagilim: { [key: string]: number } = {}
+        etkinlikler.forEach(etkinlik => {
+          const tip = etkinlik.etkinlikTipi
+          dagilim[tip] = (dagilim[tip] || 0) + 1
+        })
+        return Object.entries(dagilim).map(([tip, sayi]) => ({
+          etkinlikTipi: tip,
+          _count: sayi
+        }))
+      }),
+
+      // Müşteri tipi dağılımı
+      prisma.musteriler.groupBy({
+        by: ["musteriTipi"],
+        _count: true
+      })
+    ])
+
+    // Decimal değerleri number'a dönüştür
+    const sonTeklifler = sonTekliflerRaw.map(teklif => ({
+      ...teklif,
+      toplamTutar: Number(teklif.toplamTutar)
+    }))
+
+    console.log("Etkinlik dağılımı:", etkinlikDagilimi) // Debug için
+
+    return {
+      musteriSayisi,
+      bekleyenEtkinlikSayisi,
+      tamamlananEtkinlikSayisi,
+      sonEtkinlikler,
+      yaklasanEtkinlikler,
+      sonTeklifler,
+      etkinlikDagilimi: etkinlikDagilimi.map(item => ({
+        name: etkinlikTipiCevirileri[item.etkinlikTipi] || item.etkinlikTipi,
+        value: item._count
+      })),
+      musteriTipiDagilimi: musteriTipiDagilimi.map(item => ({
+        name: item.musteriTipi === "BIREYSEL" ? "Bireysel" : "Kurumsal",
+        value: item._count
+      }))
+    }
+  } catch (error) {
+    console.error("Dashboard verileri yüklenirken hata oluştu:", error)
+    return { error: "Dashboard verileri yüklenirken bir hata oluştu." }
+  }
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. `src/lib/actions/dashboard.ts` dosyasında:
+   - Etkinlik dağılımı sorgusunu değiştirdim
+   - Tüm etkinlikleri getirip JavaScript tarafında gruplandırma yapıyoruz
+   - Debug için console.log ekledim
+
+Bu değişiklikle birlikte dashboard'daki etkinlik dağılımı grafiği düzgün çalışmalı. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+oldu teşekkürler
+
+---
+
+_**Assistant**_
+
+Rica ederim! Etkinlik dağılımı artık düzgün çalışıyor. Console.log çıktısından da görebildiğimiz gibi:
+
+1. Müşteri Ziyaret (1 adet)
+2. Teklif Verilecek (1 adet)
+3. Telefon Görüşmesi (1 adet)
+
+etkinlikleri başarıyla grafikte gösteriliyor. Debug için eklediğimiz console.log'u kaldırmak ister misiniz? Ya da başka bir değişiklik yapmak istediğiniz bir yer var mı?
+
+---
+
+_**User**_
+
+şimdi kullanıcı yönetimi yapmak istiyorum. Kullanıcı ekleme, silme, değiştirme vb. Bunu programın rol yapısına göre yapmalısın
+
+---
+
+_**Assistant**_
+
+Kullanıcı yönetimi için şu adımları izleyelim:
+
+1. Önce kullanıcı yönetimi için gerekli API endpoint'lerini oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+"use server"
+
+import { PrismaClient } from "@prisma/client"
+import { revalidatePath } from "next/cache"
+import { getUser } from "./auth"
+
+const prisma = new PrismaClient()
+
+export async function getKullanicilar() {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Admin kontrolü
+    if (user.rolId !== 1) {
+      return { error: "Bu işlem için yetkiniz yok." }
+    }
+
+    const kullanicilar = await prisma.kullanicilar.findMany({
+      include: {
+        rol: true,
+        kayitliMusteriler: {
+          select: {
+            id: true,
+            musteriTipi: true,
+            ad: true,
+            soyad: true,
+            firmaAdi: true
+          }
+        },
+        temsilciMusteriler: {
+          select: {
+            id: true,
+            musteriTipi: true,
+            ad: true,
+            soyad: true,
+            firmaAdi: true
+          }
+        }
+      },
+      orderBy: {
+        ad: 'asc'
+      }
+    })
+
+    return { kullanicilar }
+  } catch (error) {
+    console.error("Kullanıcılar yüklenirken hata oluştu:", error)
+    return { error: "Kullanıcılar yüklenirken bir hata oluştu." }
+  }
+}
+
+export async function getKullanici(id: number) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Admin kontrolü veya kendisi kontrolü
+    if (user.rolId !== 1 && user.id !== id) {
+      return { error: "Bu işlem için yetkiniz yok." }
+    }
+
+    const kullanici = await prisma.kullanicilar.findUnique({
+      where: { id },
+      include: {
+        rol: true,
+        kayitliMusteriler: {
+          select: {
+            id: true,
+            musteriTipi: true,
+            ad: true,
+            soyad: true,
+            firmaAdi: true
+          }
+        },
+        temsilciMusteriler: {
+          select: {
+            id: true,
+            musteriTipi: true,
+            ad: true,
+            soyad: true,
+            firmaAdi: true
+          }
+        }
+      }
+    })
+
+    if (!kullanici) {
+      return { error: "Kullanıcı bulunamadı." }
+    }
+
+    return { kullanici }
+  } catch (error) {
+    console.error("Kullanıcı bilgileri yüklenirken hata oluştu:", error)
+    return { error: "Kullanıcı bilgileri yüklenirken bir hata oluştu." }
+  }
+}
+
+export async function createKullanici(data: {
+  ad: string
+  soyad: string
+  email: string
+  rolId: number
+}) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Admin kontrolü
+    if (user.rolId !== 1) {
+      return { error: "Bu işlem için yetkiniz yok." }
+    }
+
+    // E-posta kontrolü
+    const mevcutKullanici = await prisma.kullanicilar.findUnique({
+      where: { email: data.email }
+    })
+
+    if (mevcutKullanici) {
+      return { error: "Bu e-posta adresi zaten kullanılıyor." }
+    }
+
+    const kullanici = await prisma.kullanicilar.create({
+      data: {
+        ...data,
+        sifreHash: "geçici" // Clerk ile entegre olduğu için şifre kullanmıyoruz
+      },
+      include: {
+        rol: true
+      }
+    })
+
+    revalidatePath("/kullanicilar")
+    return { kullanici }
+  } catch (error) {
+    console.error("Kullanıcı oluşturulurken hata oluştu:", error)
+    return { error: "Kullanıcı oluşturulurken bir hata oluştu." }
+  }
+}
+
+export async function updateKullanici(id: number, data: {
+  ad: string
+  soyad: string
+  email: string
+  rolId: number
+}) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Admin kontrolü veya kendisi kontrolü
+    if (user.rolId !== 1 && user.id !== id) {
+      return { error: "Bu işlem için yetkiniz yok." }
+    }
+
+    // E-posta kontrolü
+    const mevcutKullanici = await prisma.kullanicilar.findUnique({
+      where: { email: data.email }
+    })
+
+    if (mevcutKullanici && mevcutKullanici.id !== id) {
+      return { error: "Bu e-posta adresi zaten kullanılıyor." }
+    }
+
+    // Rol değişikliği sadece admin tarafından yapılabilir
+    if (user.rolId !== 1) {
+      delete data.rolId
+    }
+
+    const kullanici = await prisma.kullanicilar.update({
+      where: { id },
+      data,
+      include: {
+        rol: true
+      }
+    })
+
+    revalidatePath("/kullanicilar")
+    revalidatePath(`/kullanicilar/${id}`)
+    return { kullanici }
+  } catch (error) {
+    console.error("Kullanıcı güncellenirken hata oluştu:", error)
+    return { error: "Kullanıcı güncellenirken bir hata oluştu." }
+  }
+}
+
+export async function deleteKullanici(id: number) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    // Admin kontrolü
+    if (user.rolId !== 1) {
+      return { error: "Bu işlem için yetkiniz yok." }
+    }
+
+    // Kendini silmeye çalışıyor mu kontrolü
+    if (user.id === id) {
+      return { error: "Kendinizi silemezsiniz." }
+    }
+
+    await prisma.kullanicilar.delete({
+      where: { id }
+    })
+
+    revalidatePath("/kullanicilar")
+    return { success: true }
+  } catch (error) {
+    console.error("Kullanıcı silinirken hata oluştu:", error)
+    return { error: "Kullanıcı silinirken bir hata oluştu." }
+  }
+}
+
+export async function getRoller() {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { error: "Oturum açmış kullanıcı bulunamadı." }
+    }
+
+    const roller = await prisma.roller.findMany({
+      orderBy: {
+        ad: 'asc'
+      }
+    })
+
+    return { roller }
+  } catch (error) {
+    console.error("Roller yüklenirken hata oluştu:", error)
+    return { error: "Roller yüklenirken bir hata oluştu." }
+  }
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+2. Şimdi kullanıcı listesi sayfasını oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { format } from "date-fns"
+import { tr } from "date-fns/locale"
+import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/hooks/use-auth"
+import { getKullanicilar } from "@/lib/actions/kullanici"
+
+export default function KullanicilarPage() {
+  const router = useRouter()
+  const { user, isLoading: isAuthLoading } = useAuth()
+  const [kullanicilar, setKullanicilar] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.push("/sign-in")
+    }
+  }, [user, isAuthLoading, router])
+
+  useEffect(() => {
+    async function loadKullanicilar() {
+      try {
+        const result = await getKullanicilar()
+        if (result.error) {
+          setError(result.error)
+        } else {
+          setKullanicilar(result.kullanicilar)
+        }
+      } catch (error) {
+        console.error("Kullanıcılar yüklenirken hata oluştu:", error)
+        setError("Kullanıcılar yüklenirken bir hata oluştu.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (!isAuthLoading && user) {
+      loadKullanicilar()
+    }
+  }, [user, isAuthLoading])
+
+  if (isAuthLoading || isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-gray-500">Yükleniyor...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-red-500">{error}</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Kullanıcılar</h1>
+        {user.rolId === 1 && (
+          <Button onClick={() => router.push("/kullanicilar/yeni")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Yeni Kullanıcı
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kullanıcı Listesi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ad Soyad</TableHead>
+                <TableHead>E-posta</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Müşteri Sayısı</TableHead>
+                <TableHead>İşlemler</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {kullanicilar.map((kullanici) => (
+                <TableRow key={kullanici.id}>
+                  <TableCell>
+                    {kullanici.ad} {kullanici.soyad}
+                  </TableCell>
+                  <TableCell>{kullanici.email}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{kullanici.rol.ad}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {kullanici.kayitliMusteriler.length + kullanici.temsilciMusteriler.length}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      onClick={() => router.push(`/kullanicilar/${kullanici.id}`)}
+                    >
+                      Detay
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+3. Şimdi kullanıcı detay sayfasını oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { format } from "date-fns"
+import { tr } from "date-fns/locale"
+import { Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { getKullanici, updateKullanici, deleteKullanici, getRoller } from "@/lib/actions/kullanici"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+
+const formSchema = z.object({
+  ad: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
+  soyad: z.string().min(2, "Soyad en az 2 karakter olmalıdır."),
+  email: z.string().email("Geçerli bir e-posta adresi giriniz."),
+  rolId: z.string().transform(val => parseInt(val, 10))
+})
+
+export default function KullaniciDetayPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const { user, isLoading: isAuthLoading } = useAuth()
+  const [kullanici, setKullanici] = useState<any>(null)
+  const [roller, setRoller] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      ad: "",
+      soyad: "",
+      email: "",
+      rolId: ""
+    }
+  })
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.push("/sign-in")
+    }
+  }, [user, isAuthLoading, router])
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [kullaniciResult, rollerResult] = await Promise.all([
+          getKullanici(parseInt(params.id, 10)),
+          getRoller()
+        ])
+
+        if (kullaniciResult.error) {
+          setError(kullaniciResult.error)
+        } else {
+          setKullanici(kullaniciResult.kullanici)
+          form.reset({
+            ad: kullaniciResult.kullanici.ad,
+            soyad: kullaniciResult.kullanici.soyad,
+            email: kullaniciResult.kullanici.email,
+            rolId: kullaniciResult.kullanici.rolId.toString()
+          })
+        }
+
+        if (rollerResult.error) {
+          setError(rollerResult.error)
+        } else {
+          setRoller(rollerResult.roller)
+        }
+      } catch (error) {
+        console.error("Veriler yüklenirken hata oluştu:", error)
+        setError("Veriler yüklenirken bir hata oluştu.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (!isAuthLoading && user) {
+      loadData()
+    }
+  }, [user, isAuthLoading, params.id, form])
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const result = await updateKullanici(parseInt(params.id, 10), values)
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Hata",
+          description: result.error
+        })
+      } else {
+        toast({
+          title: "Başarılı",
+          description: "Kullanıcı bilgileri güncellendi."
+        })
+        router.refresh()
+      }
+    } catch (error) {
+      console.error("Kullanıcı güncellenirken hata oluştu:", error)
+      toast({
+        variant: "destructive",
+        title: "Hata",
+        description: "Kullanıcı güncellenirken bir hata oluştu."
+      })
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      const result = await deleteKullanici(parseInt(params.id, 10))
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Hata",
+          description: result.error
+        })
+      } else {
+        toast({
+          title: "Başarılı",
+          description: "Kullanıcı silindi."
+        })
+        router.push("/kullanicilar")
+      }
+    } catch (error) {
+      console.error("Kullanıcı silinirken hata oluştu:", error)
+      toast({
+        variant: "destructive",
+        title: "Hata",
+        description: "Kullanıcı silinirken bir hata oluştu."
+      })
+    }
+  }
+
+  if (isAuthLoading || isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-gray-500">Yükleniyor...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-red-500">{error}</div>
+      </div>
+    )
+  }
+
+  if (!user || !kullanici) {
+    return null
+  }
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Kullanıcı Detayı</h1>
+        {user.rolId === 1 && user.id !== kullanici.id && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Sil
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Bu işlem geri alınamaz. Kullanıcı ve ilişkili tüm veriler silinecektir.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>İptal</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Sil</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kullanıcı Bilgileri</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="ad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ad</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="soyad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Soyad</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-posta</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {user.rolId === 1 && (
+                <FormField
+                  control={form.control}
+                  name="rolId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rol</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Rol seçiniz" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roller.map((rol) => (
+                            <SelectItem key={rol.id} value={rol.id.toString()}>
+                              {rol.ad}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <div className="flex justify-end">
+                <Button type="submit">Kaydet</Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-6 mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Kaydettiği Müşteriler</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {kullanici.kayitliMusteriler.map((musteri: any) => (
+                <li key={musteri.id} className="flex justify-between items-center">
+                  <span>
+                    {musteri.musteriTipi === "BIREYSEL"
+                      ? `${musteri.ad} ${musteri.soyad}`
+                      : musteri.firmaAdi}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    onClick={() => router.push(`/musteriler/${musteri.id}`)}
+                  >
+                    Detay
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Temsilcisi Olduğu Müşteriler</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {kullanici.temsilciMusteriler.map((musteri: any) => (
+                <li key={musteri.id} className="flex justify-between items-center">
+                  <span>
+                    {musteri.musteriTipi === "BIREYSEL"
+                      ? `${musteri.ad} ${musteri.soyad}`
+                      : musteri.firmaAdi}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    onClick={() => router.push(`/musteriler/${musteri.id}`)}
+                  >
+                    Detay
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+4. Son olarak yeni kullanıcı ekleme sayfasını oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { createKullanici, getRoller } from "@/lib/actions/kullanici"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+
+const formSchema = z.object({
+  ad: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
+  soyad: z.string().min(2, "Soyad en az 2 karakter olmalıdır."),
+  email: z.string().email("Geçerli bir e-posta adresi giriniz."),
+  rolId: z.string().transform(val => parseInt(val, 10))
+})
+
+export default function YeniKullaniciPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const { user, isLoading: isAuthLoading } = useAuth()
+  const [roller, setRoller] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      ad: "",
+      soyad: "",
+      email: "",
+      rolId: ""
+    }
+  })
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.push("/sign-in")
+    }
+  }, [user, isAuthLoading, router])
+
+  useEffect(() => {
+    async function loadRoller() {
+      try {
+        const result = await getRoller()
+        if (result.error) {
+          setError(result.error)
+        } else {
+          setRoller(result.roller)
+        }
+      } catch (error) {
+        console.error("Roller yüklenirken hata oluştu:", error)
+        setError("Roller yüklenirken bir hata oluştu.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (!isAuthLoading && user) {
+      loadRoller()
+    }
+  }, [user, isAuthLoading])
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const result = await createKullanici(values)
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Hata",
+          description: result.error
+        })
+      } else {
+        toast({
+          title: "Başarılı",
+          description: "Kullanıcı oluşturuldu."
+        })
+        router.push("/kullanicilar")
+      }
+    } catch (error) {
+      console.error("Kullanıcı oluşturulurken hata oluştu:", error)
+      toast({
+        variant: "destructive",
+        title: "Hata",
+        description: "Kullanıcı oluşturulurken bir hata oluştu."
+      })
+    }
+  }
+
+  if (isAuthLoading || isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-gray-500">Yükleniyor...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-red-500">{error}</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  // Admin kontrolü
+  if (user.rolId !== 1) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-red-500">Bu sayfaya erişim yetkiniz yok.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Yeni Kullanıcı</h1>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kullanıcı Bilgileri</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="ad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ad</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="soyad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Soyad</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-posta</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="rolId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rol</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Rol seçiniz" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {roller.map((rol) => (
+                          <SelectItem key={rol.id} value={rol.id.toString()}>
+                            {rol.ad}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/kullanicilar")}
+                >
+                  İptal
+                </Button>
+                <Button type="submit">Kaydet</Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. `src/lib/actions/kullanici.ts`:
+   - Kullanıcı yönetimi için gerekli API fonksiyonları
+   - Yetki kontrolleri (admin ve kullanıcı bazlı)
+   - CRUD işlemleri (oluşturma, okuma, güncelleme, silme)
+
+2. `src/app/kullanicilar/page.tsx`:
+   - Kullanıcı listesi sayfası
+   - Admin kontrolü
+   - Kullanıcı detaylarına erişim
+   - Yeni kullanıcı ekleme butonu
+
+3. `src/app/kullanicilar/[id]/page.tsx`:
+   - Kullanıcı detay sayfası
+   - Bilgi güncelleme formu
+   - Rol değiştirme (sadece admin)
+   - Kullanıcı silme (sadece admin)
+   - İlişkili müşteri listeleri
+
+4. `src/app/kullanicilar/yeni/page.tsx`:
+   - Yeni kullanıcı ekleme sayfası
+   - Form validasyonu
+   - Rol seçimi
+   - Admin kontrolü
+
+Özellikler:
+1. Rol bazlı yetkilendirme:
+   - Admin: Tüm işlemleri yapabilir
+   - Normal kullanıcı: Sadece kendi bilgilerini güncelleyebilir
+
+2. Kullanıcı işlemleri:
+   - Listeleme
+   - Detay görüntüleme
+   - Ekleme (sadece admin)
+   - Güncelleme
+   - Silme (sadece admin)
+
+3. İlişkili veriler:
+   - Kaydettiği müşteriler
+   - Temsilcisi olduğu müşteriler
+
+4. Güvenlik:
+   - Yetki kontrolleri
+   - E-posta benzersizliği kontrolü
+   - Kendini silme engeli
+
+Başka bir değişiklik yapmak ister misiniz?
+
+---
+
+_**User**_
+
+bu modüle nereden ulaşacağım?
+
+---
+
+_**Assistant**_
+
+Kullanıcı yönetimi modülüne erişmek için sidebar'a bir menü öğesi ekleyelim. Sadece admin kullanıcıların görebileceği şekilde ayarlayalım:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { usePathname } from "next/navigation"
+import { 
+  Users, 
+  CalendarClock, 
+  FileText, 
+  Target, 
+  BarChart3,
+  LayoutDashboard,
+  UserCog
+} from "lucide-react"
+import { getSirketAyarlari } from "@/lib/actions/sirket"
+import { useAuth } from "@/hooks/use-auth"
+
+const menuItems = [
+  {
+    title: "Anasayfa",
+    href: "/",
+    icon: LayoutDashboard
+  },
+  {
+    title: "Müşteriler",
+    href: "/musteriler",
+    icon: Users
+  },
+  {
+    title: "Aktivite ve Görevler",
+    href: "/etkinlikler",
+    icon: CalendarClock
+  },
+  {
+    title: "Teklifler",
+    href: "/teklifler",
+    icon: FileText
+  },
+  {
+    title: "Fırsatlar",
+    href: "/firsatlar",
+    icon: Target
+  },
+  {
+    title: "Raporlar",
+    href: "/raporlar",
+    icon: BarChart3
+  }
+]
+
+const adminMenuItems = [
+  {
+    title: "Kullanıcı Yönetimi",
+    href: "/kullanicilar",
+    icon: UserCog
+  }
+]
+
+export function Sidebar() {
+  const pathname = usePathname()
+  const { user } = useAuth()
+  const [logo, setLogo] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadLogo() {
+      const { ayarlar } = await getSirketAyarlari()
+      if (ayarlar?.logo) {
+        setLogo(ayarlar.logo)
+      }
+    }
+    loadLogo()
+  }, [])
+
+  // Menü öğelerini birleştir
+  const allMenuItems = [...menuItems, ...(user?.rolId === 1 ? adminMenuItems : [])]
+
+  return (
+    <div className="w-64 bg-white dark:bg-gray-800 h-screen fixed left-0 top-0 border-r">
+      <div className="p-4 border-b">
+        {logo ? (
+          <div className="h-8 relative">
+            <Image
+              src={logo}
+              alt="Şirket Logosu"
+              fill
+              className="object-contain"
+            />
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold">CRM</h1>
+        )}
+      </div>
+      <nav className="p-4">
+        <ul className="space-y-2">
+          {allMenuItems.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                    isActive ? "bg-gray-100 dark:bg-gray-700" : ""
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span>{item.title}</span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+    </div>
+  )
+```
+
+---
+
+_**Assistant**_
+
+
+
+Üzgünüm, dosya değişikliği uygulanamadı. Tekrar deneyelim:
+
+---
+
+_**Assistant**_
+
+```
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { usePathname } from "next/navigation"
+import { 
+  Users, 
+  CalendarClock, 
+  FileText, 
+  Target, 
+  BarChart3,
+  LayoutDashboard,
+  UserCog
+} from "lucide-react"
+import { getSirketAyarlari } from "@/lib/actions/sirket"
+import { useAuth } from "@/hooks/use-auth"
+
+const menuItems = [
+  {
+    title: "Anasayfa",
+    href: "/",
+    icon: LayoutDashboard
+  },
+  {
+    title: "Müşteriler",
+    href: "/musteriler",
+    icon: Users
+  },
+  {
+    title: "Aktivite ve Görevler",
+    href: "/etkinlikler",
+    icon: CalendarClock
+  },
+  {
+    title: "Teklifler",
+    href: "/teklifler",
+    icon: FileText
+  },
+  {
+    title: "Fırsatlar",
+    href: "/firsatlar",
+    icon: Target
+  },
+  {
+    title: "Raporlar",
+    href: "/raporlar",
+    icon: BarChart3
+  }
+]
+
+const adminMenuItems = [
+  {
+    title: "Kullanıcı Yönetimi",
+    href: "/kullanicilar",
+    icon: UserCog
+  }
+]
+
+export function Sidebar() {
+  const pathname = usePathname()
+  const { user } = useAuth()
+  const [logo, setLogo] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadLogo() {
+      const { ayarlar } = await getSirketAyarlari()
+      if (ayarlar?.logo) {
+        setLogo(ayarlar.logo)
+      }
+    }
+    loadLogo()
+  }, [])
+
+  // Menü öğelerini birleştir
+  const allMenuItems = [...menuItems, ...(user?.rolId === 1 ? adminMenuItems : [])]
+
+  return (
+    <div className="w-64 bg-white dark:bg-gray-800 h-screen fixed left-0 top-0 border-r">
+      <div className="p-4 border-b">
+        {logo ? (
+          <div className="h-8 relative">
+            <Image
+              src={logo}
+              alt="Şirket Logosu"
+              fill
+              className="object-contain"
+            />
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold">CRM</h1>
+        )}
+      </div>
+      <nav className="p-4">
+        <ul className="space-y-2">
+          {allMenuItems.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                    isActive ? "bg-gray-100 dark:bg-gray-700" : ""
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span>{item.title}</span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+    </div>
+  )
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. Sidebar'a yeni menü öğeleri ekledim:
+   - `adminMenuItems` dizisi oluşturdum
+   - "Kullanıcı Yönetimi" menüsünü ekledim
+   - `UserCog` ikonunu kullandım
+
+2. Rol bazlı menü gösterimi:
+   - `useAuth` hook'unu ekledim
+   - Kullanıcının rolüne göre menü öğelerini filtreledim
+   - Admin kullanıcılar için ek menü öğelerini gösterdim
+
+Artık:
+1. Admin kullanıcılar sol menüde "Kullanıcı Yönetimi" seçeneğini görecek
+2. Normal kullanıcılar bu seçeneği göremeyecek
+3. `/kullanicilar` sayfasına sadece admin kullanıcılar erişebilecek
+
+Başka bir değişiklik yapmak ister misiniz?
+
+---
+
+_**User**_
+
+hata
+
+---
+
+_**Assistant**_
+
+
+
+Eksik shadcn/ui bileşenlerini yüklememiz gerekiyor. Form ve diğer gerekli bileşenleri yükleyelim:
+
+---
+
+_**Assistant**_
+
+```
+npx shadcn-ui@latest add form ; npx shadcn-ui@latest add input ; npx shadcn-ui@latest add select ; npx shadcn-ui@latest add alert-dialog
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Önce shadcn-ui CLI'ı yükleyelim:
+
+---
+
+_**Assistant**_
+
+```
+npm install -D @shadcn/ui
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi gerekli bileşenleri yükleyelim:
+
+---
+
+_**Assistant**_
+
+```
+npx shadcn-ui@latest add form ; npx shadcn-ui@latest add input ; npx shadcn-ui@latest add select ; npx shadcn-ui@latest add alert-dialog
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Farklı bir yöntem deneyelim. Bileşenleri manuel olarak oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { Slot } from "@radix-ui/react-slot"
+import {
+  Controller,
+  ControllerProps,
+  FieldPath,
+  FieldValues,
+  FormProvider,
+  useFormContext,
+} from "react-hook-form"
+
+import { cn } from "@/lib/utils"
+import { Label } from "@/components/ui/label"
+
+const Form = FormProvider
+
+type FormFieldContextValue<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+> = {
+  name: TName
+}
+
+const FormFieldContext = React.createContext<FormFieldContextValue>(
+  {} as FormFieldContextValue
+)
+
+const FormField = <
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+>({
+  ...props
+}: ControllerProps<TFieldValues, TName>) => {
+  return (
+    <FormFieldContext.Provider value={{ name: props.name }}>
+      <Controller {...props} />
+    </FormFieldContext.Provider>
+  )
+}
+
+const useFormField = () => {
+  const fieldContext = React.useContext(FormFieldContext)
+  const itemContext = React.useContext(FormItemContext)
+  const { getFieldState, formState } = useFormContext()
+
+  const fieldState = getFieldState(fieldContext.name, formState)
+
+  if (!fieldContext) {
+    throw new Error("useFormField should be used within <FormField>")
+  }
+
+  const { id } = itemContext
+
+  return {
+    id,
+    name: fieldContext.name,
+    formItemId: `${id}-form-item`,
+    formDescriptionId: `${id}-form-item-description`,
+    formMessageId: `${id}-form-item-message`,
+    ...fieldState,
+  }
+}
+
+type FormItemContextValue = {
+  id: string
+}
+
+const FormItemContext = React.createContext<FormItemContextValue>(
+  {} as FormItemContextValue
+)
+
+const FormItem = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  const id = React.useId()
+
+  return (
+    <FormItemContext.Provider value={{ id }}>
+      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+    </FormItemContext.Provider>
+  )
+})
+FormItem.displayName = "FormItem"
+
+const FormLabel = React.forwardRef<
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
+>(({ className, ...props }, ref) => {
+  const { error, formItemId } = useFormField()
+
+  return (
+    <Label
+      ref={ref}
+      className={cn(error && "text-destructive", className)}
+      htmlFor={formItemId}
+      {...props}
+    />
+  )
+})
+FormLabel.displayName = "FormLabel"
+
+const FormControl = React.forwardRef<
+  React.ElementRef<typeof Slot>,
+  React.ComponentPropsWithoutRef<typeof Slot>
+>(({ ...props }, ref) => {
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
+
+  return (
+    <Slot
+      ref={ref}
+      id={formItemId}
+      aria-describedby={
+        !error
+          ? `${formDescriptionId}`
+          : `${formDescriptionId} ${formMessageId}`
+      }
+      aria-invalid={!!error}
+      {...props}
+    />
+  )
+})
+FormControl.displayName = "FormControl"
+
+const FormDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  const { formDescriptionId } = useFormField()
+
+  return (
+    <p
+      ref={ref}
+      id={formDescriptionId}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
+})
+FormDescription.displayName = "FormDescription"
+
+const FormMessage = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, children, ...props }, ref) => {
+  const { error, formMessageId } = useFormField()
+  const body = error ? String(error?.message) : children
+
+  if (!body) {
+    return null
+  }
+
+  return (
+    <p
+      ref={ref}
+      id={formMessageId}
+      className={cn("text-sm font-medium text-destructive", className)}
+      {...props}
+    >
+      {body}
+    </p>
+  )
+})
+FormMessage.displayName = "FormMessage"
+
+export {
+  useFormField,
+  Form,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  FormField,
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi diğer bileşenleri de oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import * as React from "react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { Check, ChevronDown } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const Select = SelectPrimitive.Root
+
+const SelectGroup = SelectPrimitive.Group
+
+const SelectValue = SelectPrimitive.Value
+
+const SelectTrigger = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <SelectPrimitive.Icon asChild>
+      <ChevronDown className="h-4 w-4 opacity-50" />
+    </SelectPrimitive.Icon>
+  </SelectPrimitive.Trigger>
+))
+SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
+
+const SelectContent = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
+>(({ className, children, position = "popper", ...props }, ref) => (
+  <SelectPrimitive.Portal>
+    <SelectPrimitive.Content
+      ref={ref}
+      className={cn(
+        "relative z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        className
+      )}
+      position={position}
+      {...props}
+    >
+      <SelectPrimitive.Viewport
+        className={cn(
+          "p-1",
+          position === "popper" &&
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+        )}
+      >
+        {children}
+      </SelectPrimitive.Viewport>
+    </SelectPrimitive.Content>
+  </SelectPrimitive.Portal>
+))
+SelectContent.displayName = SelectPrimitive.Content.displayName
+
+const SelectLabel = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Label
+    ref={ref}
+    className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+    {...props}
+  />
+))
+SelectLabel.displayName = SelectPrimitive.Label.displayName
+
+const SelectItem = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+  </SelectPrimitive.Item>
+))
+SelectItem.displayName = SelectPrimitive.Item.displayName
+
+const SelectSeparator = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    {...props}
+  />
+))
+SelectSeparator.displayName = SelectPrimitive.Separator.displayName
+
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. Form bileşenlerini ekledim:
+   - `src/components/ui/form.tsx`
+   - Form, FormField, FormItem, FormLabel, FormControl, FormMessage bileşenleri
+
+2. Select bileşenlerini ekledim:
+   - `src/components/ui/select.tsx`
+   - Select, SelectTrigger, SelectContent, SelectItem bileşenleri
+
+Şimdi kullanıcı yönetimi modülü çalışmalı. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+hata
+
+---
+
+_**Assistant**_
+
+
+
+AlertDialog bileşeni eksik. AlertDialog bileşenini oluşturalım:
+
+---
+
+_**Assistant**_
+
+```
+"use client"
+
+import * as React from "react"
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+const AlertDialog = AlertDialogPrimitive.Root
+
+const AlertDialogTrigger = AlertDialogPrimitive.Trigger
+
+const AlertDialogPortal = AlertDialogPrimitive.Portal
+
+const AlertDialogOverlay = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Overlay
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
+))
+AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
+
+const AlertDialogContent = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPortal>
+    <AlertDialogOverlay />
+    <AlertDialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        className
+      )}
+      {...props}
+    />
+  </AlertDialogPortal>
+))
+AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
+
+const AlertDialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col space-y-2 text-center sm:text-left",
+      className
+    )}
+    {...props}
+  />
+)
+AlertDialogHeader.displayName = "AlertDialogHeader"
+
+const AlertDialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className
+    )}
+    {...props}
+  />
+)
+AlertDialogFooter.displayName = "AlertDialogFooter"
+
+const AlertDialogTitle = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold", className)}
+    {...props}
+  />
+))
+AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
+
+const AlertDialogDescription = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+AlertDialogDescription.displayName =
+  AlertDialogPrimitive.Description.displayName
+
+const AlertDialogAction = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>(({ className, ...props }, ref) => (
+  <button
+    ref={ref}
+    className={cn(buttonVariants(), className)}
+    {...props}
+  />
+))
+AlertDialogAction.displayName = "AlertDialogAction"
+
+const AlertDialogCancel = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>(({ className, ...props }, ref) => (
+  <button
+    ref={ref}
+    className={cn(
+      buttonVariants({ variant: "outline" }),
+      "mt-2 sm:mt-0",
+      className
+    )}
+    {...props}
+  />
+))
+AlertDialogCancel.displayName = "AlertDialogCancel"
+
+export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+}
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Şimdi geliştirme sunucusunu yeniden başlatalım:
+
+---
+
+_**Assistant**_
+
+```
+taskkill /F /IM node.exe ; npm run dev
+```
+
+---
+
+_**Assistant**_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yaptığım değişiklikler:
+
+1. AlertDialog bileşenini ekledim:
+   - `src/components/ui/alert-dialog.tsx`
+   - Onay dialogları için gerekli bileşenler
+   - Animasyonlar ve stil tanımları
+
+Artık kullanıcı yönetimi modülü çalışmalı. Başka bir sorun var mı?
+
+---
+
+_**User**_
+
+hata
 
 ---
 

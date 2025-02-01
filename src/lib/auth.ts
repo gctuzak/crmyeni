@@ -38,7 +38,7 @@ export async function getCurrentUser() {
       // Kullanıcı hiç bulunamadıysa yeni oluştur
       // Admin rolünü bul
       const adminRol = await prisma.roller.findFirst({
-        where: { rolAdi: "Admin" },
+        where: { ad: "Admin" },
       })
 
       if (!adminRol) {

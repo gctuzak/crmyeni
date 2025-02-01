@@ -10,9 +10,11 @@ import {
   FileText, 
   Target, 
   BarChart3,
-  LayoutDashboard
+  LayoutDashboard,
+  UserCog
 } from "lucide-react"
 import { getSirketAyarlari } from "@/lib/actions/sirket"
+import { useAuth } from "@/hooks/use-auth"
 
 const menuItems = [
   {
@@ -47,8 +49,17 @@ const menuItems = [
   }
 ]
 
+const adminMenuItems = [
+  {
+    title: "Kullanıcı Yönetimi",
+    href: "/kullanicilar",
+    icon: UserCog
+  }
+]
+
 export function Sidebar() {
   const pathname = usePathname()
+  const { user } = useAuth()
   const [logo, setLogo] = useState<string | null>(null)
 
   useEffect(() => {
@@ -60,6 +71,9 @@ export function Sidebar() {
     }
     loadLogo()
   }, [])
+
+  // Menü öğelerini birleştir
+  const allMenuItems = [...menuItems, ...(user?.rolId === 1 ? adminMenuItems : [])]
 
   return (
     <div className="w-64 bg-white dark:bg-gray-800 h-screen fixed left-0 top-0 border-r">
@@ -79,7 +93,7 @@ export function Sidebar() {
       </div>
       <nav className="p-4">
         <ul className="space-y-2">
-          {menuItems.map((item) => {
+          {allMenuItems.map((item) => {
             const isActive = pathname === item.href
             return (
               <li key={item.href}>

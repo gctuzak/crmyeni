@@ -5,19 +5,19 @@ const prisma = new PrismaClient()
 async function main() {
   // Rolleri oluştur
   const adminRol = await prisma.roller.upsert({
-    where: { rolAdi: 'Admin' },
+    where: { ad: 'Admin' },
     update: {},
     create: {
-      rolAdi: 'Admin',
+      ad: 'Admin',
       yetkiler: JSON.stringify(['musteri.*', 'kullanici.*', 'teklif.*', 'etkinlik.*', 'firsat.*']),
     },
   })
 
   const temsilciRol = await prisma.roller.upsert({
-    where: { rolAdi: 'Müşteri Temsilcisi' },
+    where: { ad: 'Müşteri Temsilcisi' },
     update: {},
     create: {
-      rolAdi: 'Müşteri Temsilcisi',
+      ad: 'Müşteri Temsilcisi',
       yetkiler: JSON.stringify(['musteri.okuma', 'musteri.yazma', 'teklif.*', 'etkinlik.*', 'firsat.*']),
     },
   })

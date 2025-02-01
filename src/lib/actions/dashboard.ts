@@ -5,6 +5,33 @@ import { getUser } from "./auth"
 
 const prisma = new PrismaClient()
 
+const etkinlikTipiCevirileri: { [key: string]: string } = {
+  CARI_HESAP_BILGILERI: "Cari Hesap Bilgileri",
+  FATURA_KESILECEK: "Fatura Kesilecek",
+  GELEN_EPOSTA: "Gelen E-posta",
+  GIDEN_EPOSTA: "Giden E-posta",
+  IMALAT: "İmalat",
+  ISEMRI_OLUSTURULACAK: "İşemri Oluşturulacak",
+  KESIF: "Keşif",
+  MONTAJ: "Montaj",
+  MUSTERI_ZIYARET: "Müşteri Ziyaret",
+  NUMUNE_GONDERIMI: "Numune Gönderimi",
+  PRIM_HAKEDISI: "Prim Hakedişi",
+  PROJE_CIZIM: "Proje Çizim",
+  PROJE_INCELEME: "Proje İnceleme",
+  SEVKIYAT: "Sevkiyat",
+  SIKAYET_ARIZA_SERVIS: "Şikayet/Arıza/Servis",
+  TAHSILAT_TAKIBI: "Tahsilat Takibi",
+  TEKLIF_DURUM_TAKIBI: "Teklif Durum Takibi",
+  TEKLIF_GONDERIM_ONAYI: "Teklif Gönderim Onayı",
+  TEKLIF_ONAY_TALEBI: "Teklif Onay Talebi",
+  TEKLIF_VERILECEK: "Teklif Verilecek",
+  TEKNIK_SERVIS: "Teknik Servis",
+  TELEFON_GORUSMESI: "Telefon Görüşmesi",
+  TOPLANTI: "Toplantı",
+  TOPLU_EPOSTA: "Toplu E-posta"
+}
+
 export async function getDashboardData() {
   try {
     const user = await getUser()
@@ -124,15 +151,20 @@ export async function getDashboardData() {
       }),
 
       // Etkinlik tipi dağılımı
-      prisma.etkinlikler.groupBy({
-        by: ["etkinlikTipi"],
-        _count: true,
-        where: {
-          baslangicTarihi: {
-            gte: birHaftaOnce,
-            lte: simdi
-          }
+      prisma.etkinlikler.findMany({
+        select: {
+          etkinlikTipi: true
         }
+      }).then(etkinlikler => {
+        const dagilim: { [key: string]: number } = {}
+        etkinlikler.forEach(etkinlik => {
+          const tip = etkinlik.etkinlikTipi
+          dagilim[tip] = (dagilim[tip] || 0) + 1
+        })
+        return Object.entries(dagilim).map(([tip, sayi]) => ({
+          etkinlikTipi: tip,
+          _count: sayi
+        }))
       }),
 
       // Müşteri tipi dağılımı
@@ -148,6 +180,8 @@ export async function getDashboardData() {
       toplamTutar: Number(teklif.toplamTutar)
     }))
 
+    console.log("Etkinlik dağılımı:", etkinlikDagilimi) // Debug için
+
     return {
       musteriSayisi,
       bekleyenEtkinlikSayisi,
@@ -156,7 +190,7 @@ export async function getDashboardData() {
       yaklasanEtkinlikler,
       sonTeklifler,
       etkinlikDagilimi: etkinlikDagilimi.map(item => ({
-        name: item.etkinlikTipi.replace(/_/g, " "),
+        name: etkinlikTipiCevirileri[item.etkinlikTipi] || item.etkinlikTipi,
         value: item._count
       })),
       musteriTipiDagilimi: musteriTipiDagilimi.map(item => ({

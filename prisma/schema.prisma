@@ -94,7 +94,7 @@ model TeklifKalemleri {
 
 model Roller {
   id          Int           @id @default(autoincrement()) @map("RolID")
-  rolAdi      String        @unique @map("RolAdi") @db.VarChar(100)
+  ad          String        @unique @map("RolAdi") @db.VarChar(100)
   yetkiler    String?       @map("Yetkiler") @db.Text
   kullanicilar Kullanicilar[]
 
