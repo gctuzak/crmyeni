@@ -2210,6 +2210,368 @@ Ben verisyon güncelle dediğimde version numarası 1 arttırıp
 
 _**Assistant**_
 
+### **GitHub Scripti için Cursor AI Prompt**
+
+Aşağıda, **version numarasını 1 artırarak** ve **GitHub deposunu güncellemek** için kullanabileceğiniz bir **Cursor AI prompt** bulunmaktadır. Bu prompt, **Next.js** projesi için **GitHub Actions** kullanarak otomatik bir sürüm güncelleme işlemi gerçekleştirir.
+
+---
+
+### **Prompt: Version Güncelleme ve GitHub Depo Güncelleme**
+
+````markdown
+"""
+Language > Specialist: TypeScript > Full-Stack Developer (Next.js, GitHub Actions)
+Includes: Next.js, TypeScript, GitHub Actions, npm, semantic-release
+Requirements: Automatically increment the version number and update the GitHub repository with the latest application version.
+Plan: Create a GitHub Actions workflow to increment the version number and push the changes to the repository.
+"""
+
+### **Objective**
+- Automatically increment the version number in `package.json` by 1.
+- Push the updated version to the GitHub repository: [https://github.com/gctuzak/crmyeni](https://github.com/gctuzak/crmyeni).
+
+### **Steps**
+1. **Create a GitHub Actions Workflow**:
+   - Create a `.github/workflows/version-update.yml` file in the project root.
+   - Define the workflow to trigger on a specific command (e.g., `version-update`).
+
+2. **Increment the Version Number**:
+   - Use `npm version patch` to increment the version number in `package.json`.
+
+3. **Push the Changes to GitHub**:
+   - Commit the updated `package.json` and push it to the `main` branch.
+
+4. **Notify the User**:
+   - Print a success message with the new version number.
+
+### **GitHub Actions Workflow**
+Create the following workflow file:
+
+```yaml
+name: Version Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version update type (patch, minor, major)'
+        required: true
+        default: 'patch'
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Increment version
+        run: npm version ${{ github.event.inputs.version }}
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add package.json
+          git commit -m "Bump version to $(node -p "require('./package.json').version")"
+          git push origin main
+
+      - name: Notify success
+        run: echo "Version updated to $(node -p "require('./package.json').version")"
+```
+
+### **Usage**
+1. **Trigger the Workflow**:
+   - Go to the GitHub repository's **Actions** tab.
+   - Select the **Version Update** workflow.
+   - Click **Run workflow** and choose the version update type (`patch`, `minor`, or `major`).
+
+2. **Check the Results**:
+   - The version number in `package.json` will be incremented.
+   - The changes will be pushed to the `main` branch.
+
+### **Next Task**
+- **Test the Workflow**: Run the workflow manually to ensure it works as expected.
+- **Add Semantic Release**: Integrate `semantic-release` for automated versioning based on commit messages.
+
+"""
+````
+
+
+---
+
+### **Açıklama**
+1. **GitHub Actions Workflow**:
+   - Bu workflow, `workflow_dispatch` ile manuel olarak tetiklenir.
+   - `npm version` komutu ile `package.json` dosyasındaki sürüm numarasını artırır.
+   - Değişiklikler otomatik olarak GitHub deposuna push edilir.
+
+2. **Kullanım**:
+   - GitHub deposunun **Actions** sekmesinden workflow'u çalıştırabilirsiniz.
+   - Sürüm artırma türünü (`patch`, `minor`, `major`) seçebilirsiniz.
+
+3. **Sonuç**:
+   - `package.json` dosyasındaki sürüm numarası artırılır.
+   - Değişiklikler `main` branch'ine push edilir.
+
+---
+
+### **PowerShell ile Workflow Dosyası Oluşturma**
+Eğer PowerShell kullanarak bu dosyayı oluşturmak isterseniz, aşağıdaki komutu kullanabilirsiniz:
+
+````powershell
+Set-Content -Path .\.github\workflows\version-update.yml -Value @"
+name: Version Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version update type (patch, minor, major)'
+        required: true
+        default: 'patch'
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Increment version
+        run: npm version ${{ github.event.inputs.version }}
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add package.json
+          git commit -m "Bump version to $(node -p "require('./package.json').version")"
+          git push origin main
+
+      - name: Notify success
+        run: echo "Version updated to $(node -p "require('./package.json').version")"
+"@
+````
+
+
+---
+
+### **Sonuç**
+Bu prompt ve workflow, **Cursor AI** ile birlikte kullanıldığında, sürüm numarasını otomatik olarak artırıp GitHub deposunu güncelleyecektir. 🚀
+
+---
+
+_**User**_
+
+Gergi Tavan uygulamaları yapan şirketimin müşterilerine göndereceği tanıtım maili için bir başlık arıyorum. Bu mailde bir mimarın, dekoratörün, mühendisin gergi tavan sistemleri ile ilgili tüm aradığı araçları içeren bir bağlantı olacak. Detay Çizimler, örnek görseller, ürün katalogları, sertifikalar vs. Temel amacımız web sitemize yönlendirerek bu dosyaları indirmeleri. Her profesyonelin arşivinde bulunması gereken bilgi ve dokümanlara linkler koyacağız. Bana dijital pazarlama ve bilgi araştırmanın her ikisine de hitap eden bir başlık, içerik planı ve mail taslağı oluşturur musun
+
+
+
+---
+
+_**Assistant**_
+
+Aşağıda, gergi tavan uygulamaları yapan şirketinizin müşterilerine göndereceği tanıtım maili için dijital pazarlama ve bilgi araştırmasına hitap eden bir başlık, içerik planı ve mail taslağı örneği bulabilirsiniz.
+
+---
+
+## 1. Mail Başlığı Önerisi
+
+**"Gergi Tavan Sistemlerinde Profesyonel Detaylar: Çizimler, Kataloglar & Sertifikalar"**
+
+---
+
+## 2. İçerik Planı
+
+### **a. Giriş (Başlangıç)**
+- **Selamlama:** Kişiye özel selam (örneğin; "Sayın [İsim/Unvan],")
+- **Kısa Tanıtım:** Şirketinizin misyonu ve uzmanlık alanı hakkında kısa bilgi.
+- **Mesajın Amacı:** Bu mailin, mimar, dekoratör, mühendis gibi profesyonellerin arşivinde yer alması gereken tüm kritik dokümanlara (detay çizimler, örnek görseller, ürün katalogları, sertifikalar vb.) erişimi kolaylaştırmak amacıyla gönderildiğini belirtin.
+
+### **b. İçerik Detayları**
+- **Dokümanlara Genel Bakış:** Web sitenizde yer alan kaynak havuzunun (dijital arşiv) öne çıkan özelliklerinden bahsedin.
+  - **Detay Çizimler:** Örnek uygulamalara ait teknik çizimler.
+  - **Örnek Görseller:** Gerçek uygulama örnekleri ve montaj görselleri.
+  - **Ürün Katalogları:** Ürün gruplarına göre sınıflandırılmış kataloglar.
+  - **Sertifikalar:** Ürün ve sistemlerle ilgili alınmış sertifikaların yer aldığı dokümanlar.
+- **Faydalar:** Bu dokümanların profesyonel çalışma süreçlerine nasıl katkı sağladığını, zaman ve maliyet avantajlarını belirtin.
+- **Çağrı (Call to Action):** "Detayları Görmek İçin Tıklayın" veya "Web Sitemize Ulaşın" gibi yönlendirici ifadeler kullanarak, kullanıcıları web sitenize yönlendirin.
+
+### **c. Sonuç ve Kapanış**
+- **Teşekkür:** Okudukları için teşekkür edin.
+- **İletişim Bilgileri:** İhtiyaç duyulması halinde iletişim kurulabilecek iletişim kanallarını belirtin.
+- **İmza:** Şirket logosu veya sorumlu kişinin adı, soyadı ve görev bilgileri.
+
+---
+
+## 3. Mail Taslağı
+
+````markdown
+Konu: Gergi Tavan Sistemlerinde Profesyonel Detaylar: Çizimler, Kataloglar & Sertifikalar
+
+Sayın [Ad Soyad / Unvan],
+
+Gergi tavan uygulamaları konusunda uzmanlaşmış [Şirket Adınız] olarak, mimarlar, dekoratörler ve mühendisler için hazırlanmış kapsamlı dijital arşivimizi tanıtmaktan mutluluk duyuyoruz.
+
+**Neler Sunuyoruz?**
+
+- **Detay Çizimler:** Projelerinizde kullanabileceğiniz teknik çizimler ve montaj planları.
+- **Örnek Görseller:** Gerçek uygulama örnekleri ve ilham verici görsel referanslar.
+- **Ürün Katalogları:** Geniş ürün yelpazemizi detaylandıran kataloglar.
+- **Sertifikalar:** Gergi tavan sistemlerimizin kalite ve güvenilirliğini ortaya koyan belgeler.
+
+Bu kaynaklar, profesyonel çalışma süreçlerinizde bilgiye hızlı ve kolay erişim sağlamanızı amaçlamaktadır. Tüm bu değerli dokümanlara ulaşmak için lütfen web sitemizi ziyaret ederek ilgili bağlantılardan dosyalarınızı indirin.
+
+[Detayları Görmek İçin Tıklayın](https://www.orneksite.com)
+
+Herhangi bir sorunuz olursa, bizimle iletişime geçmekten çekinmeyin.
+
+Teşekkürler,
+
+[Adınız Soyadınız]  
+[Göreviniz]  
+[Şirket Adınız]  
+[İletişim Bilgileri]
+````
+
+---
+
+Bu taslak hem dijital pazarlama hem de bilgi arayışındaki profesyonellere hitap edecek şekilde, net ve yönlendirici bilgiler içeriyor. Web sitenize yönlendirici net call-to-action ifadesi ekleyerek, kullanıcıların değerli dokümanlara kolayca erişmesini sağlamış olacaksınız.
+
+Herhangi bir ek iyileştirme veya özelleştirme isterseniz detayları güncelleyebiliriz.
+
+---
+
+_**User**_
+
+Gergi Tavan uygulamaları yapan şirketimin müşterilerine göndereceği tanıtım maili için bir başlık arıyorum. Bu mailde bir mimarın, dekoratörün, mühendisin gergi tavan sistemleri ile ilgili tüm aradığı araçları içeren bir bağlantı olacak. Detay Çizimler, örnek görseller, ürün katalogları, sertifikalar vs. Temel amacımız web sitemize yönlendirerek bu dosyaları indirmeleri. Her profesyonelin arşivinde bulunması gereken bilgi ve dokümanlara linkler koyacağız. Bana dijital pazarlama ve bilgi araştırmanın her ikisine de hitap eden bir başlık, içerik planı ve mail taslağı oluşturur musun
+
+
+
+---
+
+_**Assistant**_
+
+### **Gergi Tavan Uygulamaları Tanıtım Maili**
+
+---
+
+## **1. Mail Başlığı Önerisi**
+
+**"Gergi Tavan Sistemlerinde Profesyonel Çözümler: Tüm İhtiyaçlarınız Tek Linkte!"**
+
+---
+
+## **2. İçerik Planı**
+
+### **a. Giriş (Başlangıç)**
+- **Selamlama:** Kişiye özel selam (örneğin; "Sayın [İsim/Unvan],")
+- **Kısa Tanıtım:** Şirketinizin gergi tavan sistemlerindeki uzmanlığından bahsedin.
+- **Mesajın Amacı:** Bu mailin, mimar, dekoratör, mühendis gibi profesyonellerin ihtiyaç duyduğu tüm dokümanlara (detay çizimler, örnek görseller, ürün katalogları, sertifikalar vb.) tek bir link üzerinden erişim sağlamak amacıyla gönderildiğini belirtin.
+
+### **b. İçerik Detayları**
+- **Dokümanlara Genel Bakış:** Web sitenizde yer alan kaynak havuzunun (dijital arşiv) öne çıkan özelliklerinden bahsedin.
+  - **Detay Çizimler:** Projelerinizde kullanabileceğiniz teknik çizimler ve montaj planları.
+  - **Örnek Görseller:** Gerçek uygulama örnekleri ve ilham verici görsel referanslar.
+  - **Ürün Katalogları:** Geniş ürün yelpazemizi detaylandıran kataloglar.
+  - **Sertifikalar:** Gergi tavan sistemlerimizin kalite ve güvenilirliğini ortaya koyan belgeler.
+- **Faydalar:** Bu dokümanların profesyonel çalışma süreçlerine nasıl katkı sağladığını, zaman ve maliyet avantajlarını belirtin.
+- **Çağrı (Call to Action):** "Tüm Dokümanlara Hemen Ulaşın" veya "Web Sitemizi Ziyaret Edin" gibi yönlendirici ifadeler kullanarak, kullanıcıları web sitenize yönlendirin.
+
+### **c. Sonuç ve Kapanış**
+- **Teşekkür:** Okudukları için teşekkür edin.
+- **İletişim Bilgileri:** İhtiyaç duyulması halinde iletişim kurulabilecek iletişim kanallarını belirtin.
+- **İmza:** Şirket logosu veya sorumlu kişinin adı, soyadı ve görev bilgileri.
+
+---
+
+## **3. Mail Taslağı**
+
+````markdown
+Konu: Gergi Tavan Sistemlerinde Profesyonel Çözümler: Tüm İhtiyaçlarınız Tek Linkte!
+
+Sayın [Ad Soyad / Unvan],
+
+Gergi tavan uygulamaları konusunda uzmanlaşmış [Şirket Adınız] olarak, mimarlar, dekoratörler ve mühendisler için hazırlanmış kapsamlı dijital arşivimizi tanıtmaktan mutluluk duyuyoruz.
+
+**Neler Sunuyoruz?**
+
+- **Detay Çizimler:** Projelerinizde kullanabileceğiniz teknik çizimler ve montaj planları.
+- **Örnek Görseller:** Gerçek uygulama örnekleri ve ilham verici görsel referanslar.
+- **Ürün Katalogları:** Geniş ürün yelpazemizi detaylandıran kataloglar.
+- **Sertifikalar:** Gergi tavan sistemlerimizin kalite ve güvenilirliğini ortaya koyan belgeler.
+
+Bu kaynaklar, profesyonel çalışma süreçlerinizde bilgiye hızlı ve kolay erişim sağlamanızı amaçlamaktadır. Tüm bu değerli dokümanlara ulaşmak için lütfen web sitemizi ziyaret ederek ilgili bağlantılardan dosyalarınızı indirin.
+
+[Tüm Dokümanlara Hemen Ulaşın](https://www.orneksite.com)
+
+Herhangi bir sorunuz olursa, bizimle iletişime geçmekten çekinmeyin.
+
+Teşekkürler,
+
+[Adınız Soyadınız]  
+[Göreviniz]  
+[Şirket Adınız]  
+[İletişim Bilgileri]
+````
+
+
+---
+
+Bu taslak hem dijital pazarlama hem de bilgi arayışındaki profesyonellere hitap edecek şekilde, net ve yönlendirici bilgiler içeriyor. Web sitenize yönlendirici net call-to-action ifadesi ekleyerek, kullanıcıların değerli dokümanlara kolayca erişmesini sağlamış olacaksınız.
+
+Herhangi bir ek iyileştirme veya özelleştirme isterseniz detayları güncelleyebiliriz.
+
+---
+
+_**User**_
+
+bu maili silmeyin, size özel alet kutusu, gergi tavan ile ilgili ihtiyacınız olan her şey, detay çizimler, dosyalar, örnekler, projeler, kataloglar, sertifikala
+yukarıdaki vurgular ile bir başlık oluştur
+
+---
+
+_**Assistant**_
+
+### **Mail Başlığı Önerisi**
+
+**"Bu Maili Silmeyin: Gergi Tavan İçin Özel Alet Kutusu – Tüm İhtiyaçlarınız Tek Yerde!"**
+
+---
+
+### **Alternatif Başlık Önerileri**
+
+1. **"Gergi Tavan İçin Her Şey: Detay Çizimler, Dosyalar, Örnekler, Kataloglar ve Sertifikalar"**
+2. **"Profesyoneller İçin Gergi Tavan Kaynakları: Tüm İhtiyaçlarınız Bu Mailde!"**
+3. **"Gergi Tavan Uygulamalarında İhtiyacınız Olan Her Şey: Özel Alet Kutusu"**
+4. **"Gergi Tavan İçin Tüm Kaynaklar: Detay Çizimler, Örnekler, Kataloglar ve Daha Fazlası"**
+5. **"Bu Maili Silmeyin: Gergi Tavan İçin Tüm Dokümanlar ve Kaynaklar"**
+
+---
+
+### **Açıklama**
+Bu başlıklar, **"Bu maili silmeyin"** vurgusuyla, mailin önemini ve içeriğin değerini öne çıkarıyor. Ayrıca, **"özel alet kutusu"** ifadesi, mailin içeriğinin kapsamlı ve profesyonel ihtiyaçlara yönelik olduğunu vurguluyor. **"Detay çizimler, dosyalar, örnekler, projeler, kataloglar, sertifikalar"** gibi anahtar kelimeler, mailin içeriğini net bir şekilde tanımlıyor ve okuyucunun ilgisini çekiyor.
+
+---
+
+### **En Çarpıcı Başlık**
 
 
 ---

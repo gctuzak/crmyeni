@@ -1,59 +1,16 @@
 "use client"
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { formatCurrency } from "@/lib/utils"
 
-const data = [
-  {
-    name: "Oca",
-    total: 120000
-  },
-  {
-    name: "Şub",
-    total: 180000
-  },
-  {
-    name: "Mar",
-    total: 240000
-  },
-  {
-    name: "Nis",
-    total: 160000
-  },
-  {
-    name: "May",
-    total: 320000
-  },
-  {
-    name: "Haz",
-    total: 280000
-  },
-  {
-    name: "Tem",
-    total: 260000
-  },
-  {
-    name: "Ağu",
-    total: 340000
-  },
-  {
-    name: "Eyl",
-    total: 280000
-  },
-  {
-    name: "Eki",
-    total: 300000
-  },
-  {
-    name: "Kas",
-    total: 380000
-  },
-  {
-    name: "Ara",
-    total: 420000
-  }
-]
+interface OverviewProps {
+  data: {
+    name: string
+    total: number
+  }[]
+}
 
-export function Overview() {
+export function Overview({ data }: OverviewProps) {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={data}>
@@ -69,10 +26,10 @@ export function Overview() {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `${value / 1000}k₺`}
+          tickFormatter={(value) => formatCurrency(value)}
         />
         <Tooltip 
-          formatter={(value: number) => [`${value.toLocaleString('tr-TR')}₺`, "Toplam"]}
+          formatter={(value: number) => [formatCurrency(value), "Toplam"]}
           cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
         />
         <Bar

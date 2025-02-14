@@ -4,7 +4,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import "./globals.css"
-import { ClerkProvider } from "@clerk/nextjs"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -19,27 +18,23 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider>
-      <html lang="tr" suppressHydrationWarning>
-        <body className={inter.className}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-              <Sidebar />
-              <div className="pl-64">
-                <Topbar />
-                <main className="pt-16 p-6">
-                  {children}
-                </main>
-              </div>
+    <html lang="tr" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex h-screen">
+            <Sidebar />
+            <div className="flex-1 ml-64">
+              <Topbar />
+              <main className="p-8">{children}</main>
             </div>
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+          </div>
+        </ThemeProvider>
+      </body>
+    </html>
   )
 } 

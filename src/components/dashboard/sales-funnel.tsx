@@ -2,55 +2,40 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 
-const data = [
-  {
-    name: "İlk Görüşme",
-    value: 15,
-    color: "#0ea5e9"
-  },
-  {
-    name: "İhtiyaç Analizi",
-    value: 12,
-    color: "#6366f1"
-  },
-  {
-    name: "Teklif Hazırlama",
-    value: 8,
-    color: "#8b5cf6"
-  },
-  {
-    name: "Teklif Sunumu",
-    value: 6,
-    color: "#d946ef"
-  },
-  {
-    name: "Müzakere",
-    value: 4,
-    color: "#f59e0b"
-  },
-  {
-    name: "Sözleşme",
-    value: 2,
-    color: "#f97316"
-  }
+interface SalesFunnelProps {
+  data: {
+    name: string
+    value: number
+  }[]
+}
+
+const COLORS = [
+  "#0ea5e9", // sky-500
+  "#6366f1", // indigo-500
+  "#8b5cf6", // violet-500
+  "#d946ef", // fuchsia-500
+  "#f59e0b", // amber-500
+  "#f97316", // orange-500
+  "#ef4444", // red-500
+  "#10b981", // emerald-500
 ]
 
-export function SalesFunnel() {
+export function SalesFunnel({ data }: SalesFunnelProps) {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <PieChart>
         <Pie
           data={data}
-          dataKey="value"
-          nameKey="name"
           cx="50%"
           cy="50%"
           innerRadius={60}
           outerRadius={120}
           paddingAngle={2}
+          dataKey="value"
+          nameKey="name"
         >
           {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} />
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
         <Tooltip 

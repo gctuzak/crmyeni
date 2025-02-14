@@ -1,55 +1,64 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
-import type { Kullanicilar } from "@prisma/client"
-import { getCurrentUser } from "@/lib/auth"
+import { getUser } from "@/lib/auth"
+
+interface Rol {
+  id: number
+  rolAdi: string
+  yetkiler: string | null
+}
+
+interface Kullanici {
+  id: number
+  ad: string
+  soyad: string
+  email: string
+  sifreHash: string
+  rolId: number
+  rol: Rol
+}
 
 interface UseAuthReturn {
-  user: Kullanicilar | null
+  user: Kullanici | null
   isLoading: boolean
   error: string | null
 }
 
 export function useAuth(): UseAuthReturn {
-  const { isLoaded: isClerkLoaded, isSignedIn } = useUser()
-  const [user, setUser] = useState<Kullanicilar | null>(null)
+  const [user, setUser] = useState<Kullanici | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let isMounted = true
+
     async function loadUser() {
       try {
-        if (!isSignedIn) {
-          setUser(null)
+        const user = await getUser()
+        if (isMounted) {
+          setUser(user)
           setIsLoading(false)
-          return
         }
-
-        const dbUser = await getCurrentUser()
-        if (!dbUser) {
-          setError("Kullanıcı bilgileri alınamadı.")
-          setIsLoading(false)
-          return
-        }
-
-        setUser(dbUser)
-        setIsLoading(false)
       } catch (error) {
-        console.error("Kullanıcı bilgileri yüklenirken hata oluştu:", error)
-        setError("Kullanıcı bilgileri yüklenirken bir hata oluştu.")
-        setIsLoading(false)
+        if (isMounted) {
+          console.error("Kullanıcı bilgileri yüklenirken hata oluştu:", error)
+          setError("Kullanıcı bilgileri yüklenirken bir hata oluştu")
+          setIsLoading(false)
+        }
       }
     }
 
-    if (isClerkLoaded) {
-      loadUser()
+    loadUser()
+
+    return () => {
+      isMounted = false
     }
-  }, [isClerkLoaded, isSignedIn])
+  }, [])
 
   return {
     user,
-    isLoading: !isClerkLoaded || isLoading,
+    isLoading,
     error,
   }
 } 

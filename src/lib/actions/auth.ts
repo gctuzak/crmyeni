@@ -1,67 +1,84 @@
 "use server"
 
-import { auth, currentUser } from "@clerk/nextjs"
-import { PrismaClient } from "@prisma/client"
+import { cookies } from "next/headers"
+import { prisma } from "@/lib/prisma"
+import * as bcrypt from "bcrypt"
+import * as jwt from "jsonwebtoken"
 
-const prisma = new PrismaClient()
+const JWT_SECRET = process.env.JWT_SECRET || "default-secret"
+
+export async function signIn(email: string, password: string) {
+  try {
+    const user = await prisma.kullanicilar.findUnique({
+      where: { email },
+      include: { rol: true },
+    })
+
+    if (!user) {
+      return { error: "Kullanıcı bulunamadı" }
+    }
+
+    const isValid = await bcrypt.compare(password, user.sifreHash)
+    if (!isValid) {
+      return { error: "Hatalı şifre" }
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      { 
+        id: user.id,
+        email: user.email,
+        rolId: user.rolId 
+      },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    )
+
+    // Set cookie
+    cookies().set("auth-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 // 1 day
+    })
+
+    return { user }
+  } catch (error) {
+    console.error("Giriş yapılırken hata oluştu:", error)
+    return { error: "Giriş yapılırken bir hata oluştu" }
+  }
+}
+
+export async function signOut() {
+  cookies().delete("auth-token")
+}
 
 export async function getUser() {
   try {
-    const { userId } = auth()
-    if (!userId) {
-      console.error("Oturum açmış kullanıcı bulunamadı")
-      return null
+    const token = cookies().get("auth-token")?.value
+    if (!token) return null
+
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      id: number
+      email: string
+      rolId: number
     }
 
-    const clerkUser = await currentUser()
-    if (!clerkUser) {
-      console.error("Clerk kullanıcı bilgileri alınamadı")
-      return null
-    }
-
-    const email = clerkUser.emailAddresses[0]?.emailAddress
-    if (!email) {
-      console.error("Kullanıcının email adresi bulunamadı")
-      return null
-    }
-
-    // Önce admin kullanıcısını bul
-    const adminUser = await prisma.kullanicilar.findFirst({
-      where: {
-        email: 'admin@example.com',
-      },
-    })
-
-    if (!adminUser) {
-      console.error("Admin kullanıcısı bulunamadı")
-      return null
-    }
-
-    // Clerk'in userId'si ile eşleşen kullanıcıyı bul veya oluştur
-    const user = await prisma.kullanicilar.upsert({
-      where: {
-        email: email,
-      },
-      update: {
-        ad: clerkUser.firstName || "Varsayılan",
-        soyad: clerkUser.lastName || "Kullanıcı",
-      },
-      create: {
-        email: email,
-        ad: clerkUser.firstName || "Varsayılan",
-        soyad: clerkUser.lastName || "Kullanıcı",
-        sifreHash: "geçici",
-        rolId: adminUser.rolId, // Yeni kullanıcılara admin rolü veriyoruz (test için)
-      },
+    const user = await prisma.kullanicilar.findUnique({
+      where: { id: decoded.id },
+      include: { rol: true },
     })
 
     return user
   } catch (error) {
-    console.error("Kullanıcı bilgileri alınırken hata oluştu:", error)
-    if (error instanceof Error) {
-      console.error("Hata detayı:", error.message)
-      console.error("Stack trace:", error.stack)
-    }
     return null
   }
+}
+
+export async function requireAuth() {
+  const user = await getUser()
+  if (!user) {
+    throw new Error("Bu işlem için yetkiniz yok.")
+  }
+  return user
 } 

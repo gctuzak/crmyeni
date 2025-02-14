@@ -1,96 +1,89 @@
 "use server"
 
-import { PrismaClient } from "@prisma/client"
-import { currentUser } from "@clerk/nextjs"
+import { cookies } from "next/headers"
+import { prisma } from "./prisma"
+import * as bcrypt from "bcrypt"
+import * as jwt from "jsonwebtoken"
 
-const prisma = new PrismaClient()
+const JWT_SECRET = process.env.JWT_SECRET || "default-secret"
 
-export async function getCurrentUser() {
+export async function signIn(email: string, password: string) {
   try {
-    const clerkUser = await currentUser()
-    if (!clerkUser) {
-      return null
-    }
-
-    // Önce clerkId ile ara
-    let user = await prisma.kullanicilar.findFirst({
-      where: { clerkId: clerkUser.id },
+    const user = await prisma.kullanicilar.findUnique({
+      where: { email },
+      include: { rol: true },
     })
 
-    // Bulunamadıysa e-posta ile ara
     if (!user) {
-      const email = clerkUser.emailAddresses[0]?.emailAddress
-      if (email) {
-        user = await prisma.kullanicilar.findFirst({
-          where: { email },
-        })
-
-        // E-posta ile bulunduysa clerkId'yi güncelle
-        if (user) {
-          user = await prisma.kullanicilar.update({
-            where: { id: user.id },
-            data: { clerkId: clerkUser.id },
-          })
-          return user
-        }
-      }
-
-      // Kullanıcı hiç bulunamadıysa yeni oluştur
-      // Admin rolünü bul
-      const adminRol = await prisma.roller.findFirst({
-        where: { rolAdi: "Admin" },
-      })
-
-      if (!adminRol) {
-        console.error("Admin rolü bulunamadı")
-        return null
-      }
-
-      // Yeni kullanıcı oluştur
-      const newUser = await prisma.kullanicilar.create({
-        data: {
-          ad: clerkUser.firstName || "Varsayılan",
-          soyad: clerkUser.lastName || "Kullanıcı",
-          email: email || "",
-          sifreHash: "geçici",
-          clerkId: clerkUser.id,
-          rolId: adminRol.id, // Test için admin rolü veriyoruz
-        },
-      })
-
-      return newUser
+      return { error: "Kullanıcı bulunamadı" }
     }
 
-    return user
+    const isValid = await bcrypt.compare(password, user.sifreHash)
+    if (!isValid) {
+      return { error: "Hatalı şifre" }
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      { 
+        id: user.id,
+        email: user.email,
+        rolId: user.rolId 
+      },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    )
+
+    // Set cookie
+    cookies().set("auth-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 // 1 day
+    })
+
+    return { user }
   } catch (error) {
-    console.error("Kullanıcı bilgileri alınırken hata oluştu:", error)
-    if (error instanceof Error) {
-      console.error("Hata detayı:", error.message)
-      console.error("Stack trace:", error.stack)
-    }
-    return null
+    console.error("Giriş yapılırken hata oluştu:", error)
+    return { error: "Giriş yapılırken bir hata oluştu" }
   }
+}
+
+export async function signOut() {
+  cookies().delete("auth-token")
 }
 
 export async function getUser() {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      throw new Error("Oturum açmış kullanıcı bulunamadı.")
+    const token = cookies().get("auth-token")?.value
+    if (!token) return null
+
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      id: number
+      email: string
+      rolId: number
     }
+
+    const user = await prisma.kullanicilar.findUnique({
+      where: { id: decoded.id },
+      include: { rol: true },
+    })
+
+    if (!user) {
+      cookies().delete("auth-token")
+      return null
+    }
+
     return user
   } catch (error) {
     console.error("Kullanıcı bilgileri alınırken hata oluştu:", error)
-    if (error instanceof Error) {
-      console.error("Hata detayı:", error.message)
-      console.error("Stack trace:", error.stack)
-    }
+    cookies().delete("auth-token")
     return null
   }
 }
 
 export async function requireAuth() {
-  const user = await getCurrentUser()
+  const user = await getUser()
   if (!user) {
     throw new Error("Bu işlem için yetkiniz yok.")
   }
