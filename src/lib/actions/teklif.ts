@@ -4,69 +4,58 @@ import { PrismaClient } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { TeklifForm } from "../validations/teklif"
 import { getUser } from "../auth"
+import { Decimal } from "@prisma/client/runtime/library"
 
 const prisma = new PrismaClient()
 
 // Teklif numarası oluşturma fonksiyonu
 export async function generateTeklifNo(musteriId: number) {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
+  try {
+    // Müşterinin son teklifini bul
+    const sonTeklif = await prisma.teklifler.findFirst({
+      where: { musteriId },
+      orderBy: { olusturmaTarihi: "desc" },
+    })
 
-  // O ay içindeki son teklif numarasını bul
-  const lastTeklif = await prisma.teklifler.findFirst({
-    where: {
-      musteriId,
-      teklifNo: {
-        startsWith: `${year}${month}-`,
-      },
-    },
-    orderBy: {
-      teklifNo: "desc",
-    },
-  })
+    const yil = new Date().getFullYear()
+    let siraNo = 1
 
-  let sequence = 1
-  if (lastTeklif) {
-    const lastSequence = parseInt(lastTeklif.teklifNo.split("-")[1])
-    sequence = lastSequence + 1
+    if (sonTeklif) {
+      const sonTeklifNo = sonTeklif.teklifNo
+      const match = sonTeklifNo.match(/TKL-(\d{4})-(\d+)/)
+      if (match && match[1] === yil.toString()) {
+        siraNo = parseInt(match[2]) + 1
+      }
+    }
+
+    return `TKL-${yil}-${siraNo.toString().padStart(3, "0")}`
+  } catch (error) {
+    console.error("Teklif numarası oluşturulurken hata oluştu:", error)
+    throw new Error("Teklif numarası oluşturulurken bir hata oluştu.")
   }
-
-  return `${year}${month}-${String(sequence).padStart(3, "0")}`
 }
 
 export async function getTeklifler() {
   try {
-    const user = await getUser()
-    if (!user) {
-      return { error: "Oturum açmış kullanıcı bulunamadı." }
-    }
-
     const teklifler = await prisma.teklifler.findMany({
       include: {
-        musteri: {
+        musteri: true,
+        kullanici: true,
+        teklifKalemleri: {
           include: {
-            ilgiliKisiler: true,
+            urun: true,
+            hizmet: true,
           },
         },
-        kullanici: {
-          select: {
-            id: true,
-            ad: true,
-            soyad: true,
-          },
-        },
-        teklifKalemleri: true,
       },
       orderBy: {
         olusturmaTarihi: "desc",
       },
     })
-
     return { teklifler }
   } catch (error) {
-    console.error("Teklifler yüklenirken hata oluştu:", error)
-    return { error: "Teklifler yüklenirken bir hata oluştu." }
+    console.error("Teklifler getirilirken hata oluştu:", error)
+    return { error: "Teklifler getirilirken bir hata oluştu." }
   }
 }
 
@@ -75,29 +64,20 @@ export async function getTeklif(id: number) {
     const teklif = await prisma.teklifler.findUnique({
       where: { id },
       include: {
-        musteri: {
+        musteri: true,
+        kullanici: true,
+        teklifKalemleri: {
           include: {
-            ilgiliKisiler: true,
+            urun: true,
+            hizmet: true,
           },
         },
-        kullanici: {
-          select: {
-            id: true,
-            ad: true,
-            soyad: true,
-          },
-        },
-        teklifKalemleri: true,
       },
     })
-
-    if (!teklif) {
-      return { error: "Teklif bulunamadı." }
-    }
-
     return { teklif }
   } catch (error) {
-    return { error: "Teklif bilgileri yüklenirken bir hata oluştu." }
+    console.error("Teklif getirilirken hata oluştu:", error)
+    return { error: "Teklif getirilirken bir hata oluştu." }
   }
 }
 
@@ -130,38 +110,59 @@ export async function getMusteriTeklifleri(musteriId: number) {
   }
 }
 
-export async function createTeklif(data: TeklifForm) {
+type CreateTeklifInput = {
+  teklifNo: string
+  baslik: string
+  musteriId: number
+  aciklama?: string | null
+  paraBirimi: string
+  durum: string
+  sonGecerlilikTarihi: string
+  notlar?: string | null
+  teklifKalemleri: {
+    kalemTipi: "URUN" | "HIZMET"
+    urunId?: number
+    hizmetId?: number
+    miktar: number
+    birim: string
+    birimFiyat: number
+    kdvOrani: number
+    aciklama?: string | null
+  }[]
+}
+
+export async function createTeklif(data: CreateTeklifInput) {
   try {
-    const user = await getUser()
-    if (!user) {
-      return { error: "Oturum açmış kullanıcı bulunamadı." }
-    }
-
-    // Teklif numarası oluştur
-    const teklifNo = await generateTeklifNo(data.musteriId)
-
     // Toplam tutarı hesapla
-    const toplamTutar = data.teklifKalemleri.reduce((total, kalem) => {
-      const kdvliTutar = kalem.birimFiyat * kalem.miktar * (1 + kalem.kdvOrani / 100)
-      return total + kdvliTutar
-    }, 0)
+    let toplamTutar = new Decimal(0)
+    for (const kalem of data.teklifKalemleri) {
+      const tutar = new Decimal(kalem.birimFiyat).mul(kalem.miktar)
+      toplamTutar = toplamTutar.add(tutar)
+    }
 
     const teklif = await prisma.teklifler.create({
       data: {
-        musteriId: data.musteriId,
-        teklifNo,
+        teklifNo: data.teklifNo,
         baslik: data.baslik,
+        musteriId: data.musteriId,
         aciklama: data.aciklama,
         toplamTutar,
         paraBirimi: data.paraBirimi,
         durum: data.durum,
-        olusturmaTarihi: new Date(),
-        sonGecerlilikTarihi: data.sonGecerlilikTarihi,
-        kullaniciId: user.id,
-        revizyon: 1,
+        sonGecerlilikTarihi: new Date(data.sonGecerlilikTarihi),
         notlar: data.notlar,
+        kullaniciId: 1, // TODO: Gerçek kullanıcı ID'si kullanılacak
         teklifKalemleri: {
-          create: data.teklifKalemleri,
+          create: data.teklifKalemleri.map(kalem => ({
+            kalemTipi: kalem.kalemTipi,
+            urunId: kalem.kalemTipi === "URUN" ? kalem.urunId : null,
+            hizmetId: kalem.kalemTipi === "HIZMET" ? kalem.hizmetId : null,
+            miktar: kalem.miktar,
+            birim: kalem.birim,
+            birimFiyat: new Decimal(kalem.birimFiyat),
+            kdvOrani: kalem.kdvOrani,
+            aciklama: kalem.aciklama,
+          })),
         },
       },
       include: {
@@ -177,57 +178,52 @@ export async function createTeklif(data: TeklifForm) {
   }
 }
 
-export async function updateTeklif(id: number, data: TeklifForm) {
+type UpdateTeklifInput = Partial<CreateTeklifInput>
+
+export async function updateTeklif(id: number, data: UpdateTeklifInput) {
   try {
-    const user = await getUser()
-    if (!user) {
-      return { error: "Oturum açmış kullanıcı bulunamadı." }
-    }
-
-    // Mevcut teklifi bul
-    const mevcutTeklif = await prisma.teklifler.findUnique({
-      where: { id },
-      include: {
-        teklifKalemleri: true,
-      },
+    // Önce mevcut teklif kalemlerini sil
+    await prisma.teklifKalemleri.deleteMany({
+      where: { teklifId: id },
     })
-
-    if (!mevcutTeklif) {
-      return { error: "Teklif bulunamadı." }
-    }
 
     // Toplam tutarı hesapla
-    const toplamTutar = data.teklifKalemleri.reduce((total, kalem) => {
-      const kdvliTutar = kalem.birimFiyat * kalem.miktar * (1 + kalem.kdvOrani / 100)
-      return total + kdvliTutar
-    }, 0)
+    let toplamTutar = new Decimal(0)
+    if (data.teklifKalemleri) {
+      for (const kalem of data.teklifKalemleri) {
+        const tutar = new Decimal(kalem.birimFiyat).mul(kalem.miktar)
+        toplamTutar = toplamTutar.add(tutar)
+      }
+    }
 
-    // Eski teklifi arşivle
-    await prisma.teklifler.update({
+    const teklif = await prisma.teklifler.update({
       where: { id },
       data: {
-        durum: "ARSIV",
-      },
-    })
-
-    // Yeni revizyon oluştur
-    const yeniTeklif = await prisma.teklifler.create({
-      data: {
-        musteriId: data.musteriId,
-        teklifNo: `${mevcutTeklif.teklifNo}-R${mevcutTeklif.revizyon + 1}`,
-        baslik: data.baslik,
+        ...(data.teklifNo && { teklifNo: data.teklifNo }),
+        ...(data.baslik && { baslik: data.baslik }),
+        ...(data.musteriId && { musteriId: data.musteriId }),
         aciklama: data.aciklama,
-        toplamTutar,
-        paraBirimi: data.paraBirimi,
-        durum: data.durum,
-        olusturmaTarihi: new Date(),
-        sonGecerlilikTarihi: data.sonGecerlilikTarihi,
-        kullaniciId: user.id,
-        revizyon: mevcutTeklif.revizyon + 1,
+        ...(data.teklifKalemleri && { toplamTutar }),
+        ...(data.paraBirimi && { paraBirimi: data.paraBirimi }),
+        ...(data.durum && { durum: data.durum }),
+        ...(data.sonGecerlilikTarihi && {
+          sonGecerlilikTarihi: new Date(data.sonGecerlilikTarihi),
+        }),
         notlar: data.notlar,
-        teklifKalemleri: {
-          create: data.teklifKalemleri,
-        },
+        ...(data.teklifKalemleri && {
+          teklifKalemleri: {
+            create: data.teklifKalemleri.map(kalem => ({
+              kalemTipi: kalem.kalemTipi,
+              urunId: kalem.kalemTipi === "URUN" ? kalem.urunId : null,
+              hizmetId: kalem.kalemTipi === "HIZMET" ? kalem.hizmetId : null,
+              miktar: kalem.miktar,
+              birim: kalem.birim,
+              birimFiyat: new Decimal(kalem.birimFiyat),
+              kdvOrani: kalem.kdvOrani,
+              aciklama: kalem.aciklama,
+            })),
+          },
+        }),
       },
       include: {
         teklifKalemleri: true,
@@ -235,8 +231,7 @@ export async function updateTeklif(id: number, data: TeklifForm) {
     })
 
     revalidatePath("/teklifler")
-    revalidatePath(`/teklifler/${id}`)
-    return { teklif: yeniTeklif }
+    return { teklif }
   } catch (error) {
     console.error("Teklif güncellenirken hata oluştu:", error)
     return { error: "Teklif güncellenirken bir hata oluştu." }
@@ -249,9 +244,9 @@ export async function deleteTeklif(id: number) {
       where: { id },
     })
     revalidatePath("/teklifler")
-    revalidatePath(`/musteriler/${teklif.musteriId}`)
-    return { success: true }
+    return { teklif }
   } catch (error) {
+    console.error("Teklif silinirken hata oluştu:", error)
     return { error: "Teklif silinirken bir hata oluştu." }
   }
 }

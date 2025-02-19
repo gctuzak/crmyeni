@@ -16,6 +16,9 @@ async function main() {
     await prisma.kullanicilar.deleteMany()
     await prisma.roller.deleteMany()
     await prisma.asamalar.deleteMany()
+    await prisma.urunler.deleteMany()
+    await prisma.hizmetler.deleteMany()
+    await prisma.urunHizmetGruplari.deleteMany()
 
     console.log('Mevcut veriler temizlendi')
 
@@ -82,6 +85,93 @@ async function main() {
     })
 
     console.log('Kullanıcılar oluşturuldu')
+
+    // Ürün gruplarını oluştur
+    const yazilimGrubu = await prisma.urunHizmetGruplari.create({
+      data: {
+        grupTipi: 'URUN',
+        grupKodu: 'YZL',
+        grupAdi: 'Yazılım Ürünleri',
+        aciklama: 'Her türlü yazılım ürünü',
+        sira: 1,
+      },
+    })
+
+    const donaninGrubu = await prisma.urunHizmetGruplari.create({
+      data: {
+        grupTipi: 'URUN',
+        grupKodu: 'DNM',
+        grupAdi: 'Donanım Ürünleri',
+        aciklama: 'Her türlü donanım ürünü',
+        sira: 2,
+      },
+    })
+
+    const hizmetGrubu = await prisma.urunHizmetGruplari.create({
+      data: {
+        grupTipi: 'HIZMET',
+        grupKodu: 'HZM',
+        grupAdi: 'Yazılım Hizmetleri',
+        aciklama: 'Yazılım geliştirme ve destek hizmetleri',
+        sira: 1,
+      },
+    })
+
+    console.log('Ürün ve hizmet grupları oluşturuldu')
+
+    // Ürünleri oluştur
+    const urun1 = await prisma.urunler.create({
+      data: {
+        urunKodu: 'CRM-001',
+        urunAdi: 'CRM Yazılımı',
+        grupId: yazilimGrubu.id,
+        birim: 'ADET',
+        birimFiyat: 50000,
+        kdvOrani: 20,
+        aciklama: 'Temel CRM modülleri dahil',
+      },
+    })
+
+    const urun2 = await prisma.urunler.create({
+      data: {
+        urunKodu: 'SRV-001',
+        urunAdi: 'Sunucu',
+        grupId: donaninGrubu.id,
+        birim: 'ADET',
+        birimFiyat: 100000,
+        kdvOrani: 20,
+        aciklama: 'Yüksek performanslı sunucu',
+      },
+    })
+
+    console.log('Ürünler oluşturuldu')
+
+    // Hizmetleri oluştur
+    const hizmet1 = await prisma.hizmetler.create({
+      data: {
+        hizmetKodu: 'YAZG-001',
+        hizmetAdi: 'Yazılım Geliştirme',
+        grupId: hizmetGrubu.id,
+        birim: 'SAAT',
+        birimFiyat: 1500,
+        kdvOrani: 20,
+        aciklama: 'Yazılım geliştirme hizmeti',
+      },
+    })
+
+    const hizmet2 = await prisma.hizmetler.create({
+      data: {
+        hizmetKodu: 'EGT-001',
+        hizmetAdi: 'Eğitim',
+        grupId: hizmetGrubu.id,
+        birim: 'GUN',
+        birimFiyat: 10000,
+        kdvOrani: 20,
+        aciklama: 'Kullanıcı eğitimi',
+      },
+    })
+
+    console.log('Hizmetler oluşturuldu')
 
     // Müşterileri oluştur
     const musteri1 = await prisma.musteriler.create({
@@ -274,7 +364,8 @@ async function main() {
         teklifKalemleri: {
           create: [
             {
-              urunAdi: 'CRM Yazılımı Geliştirme',
+              kalemTipi: 'URUN',
+              urunId: urun1.id,
               miktar: 1,
               birim: 'ADET',
               birimFiyat: 200000,
@@ -282,7 +373,8 @@ async function main() {
               aciklama: 'Temel CRM modülleri dahil',
             },
             {
-              urunAdi: 'Eğitim ve Destek',
+              kalemTipi: 'HIZMET',
+              hizmetId: hizmet2.id,
               miktar: 5,
               birim: 'GUN',
               birimFiyat: 10000,

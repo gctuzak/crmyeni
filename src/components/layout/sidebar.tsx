@@ -10,7 +10,9 @@ import {
   BarChart3,
   LayoutDashboard,
   UserCog,
-  UserPlus
+  UserPlus,
+  Package,
+  Wrench
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -39,6 +41,16 @@ const menuItems = [
     title: "Fırsatlar",
     href: "/firsatlar",
     icon: Target
+  },
+  {
+    title: "Ürünler",
+    href: "/urunler",
+    icon: Package
+  },
+  {
+    title: "Hizmetler",
+    href: "/hizmetler",
+    icon: Wrench
   },
   {
     title: "Raporlar",
