@@ -3,39 +3,37 @@
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { Decimal } from "@prisma/client/runtime/library"
+import { DatabaseError, NotFoundError, tryCatch } from "@/lib/error"
 
 export async function getHizmetler() {
-  try {
+  return tryCatch(async () => {
     const hizmetler = await prisma.hizmetler.findMany({
       include: {
         grup: true,
       },
-      orderBy: [
-        {
-          hizmetKodu: "asc",
-        },
-      ],
+      orderBy: {
+        hizmetKodu: "asc",
+      },
     })
-    return { hizmetler }
-  } catch (error) {
-    console.error("Hizmetler getirilirken hata oluştu:", error)
-    return { error: "Hizmetler getirilirken bir hata oluştu." }
-  }
+    return hizmetler
+  }, "Hizmetler getirilirken hata oluştu")
 }
 
 export async function getHizmet(id: number) {
-  try {
+  return tryCatch(async () => {
     const hizmet = await prisma.hizmetler.findUnique({
       where: { id },
       include: {
         grup: true,
       },
     })
-    return { hizmet }
-  } catch (error) {
-    console.error("Hizmet getirilirken hata oluştu:", error)
-    return { error: "Hizmet getirilirken bir hata oluştu." }
-  }
+    
+    if (!hizmet) {
+      throw new NotFoundError("Hizmet", id)
+    }
+    
+    return hizmet
+  }, `Hizmet ID:${id} getirilirken hata oluştu`)
 }
 
 type CreateHizmetInput = {
@@ -50,7 +48,7 @@ type CreateHizmetInput = {
 }
 
 export async function createHizmet(data: CreateHizmetInput) {
-  try {
+  return tryCatch(async () => {
     const hizmet = await prisma.hizmetler.create({
       data: {
         ...data,
@@ -58,17 +56,22 @@ export async function createHizmet(data: CreateHizmetInput) {
       },
     })
     revalidatePath("/hizmetler")
-    return { hizmet }
-  } catch (error) {
-    console.error("Hizmet oluşturulurken hata oluştu:", error)
-    return { error: "Hizmet oluşturulurken bir hata oluştu." }
-  }
+    return hizmet
+  }, "Hizmet oluşturulurken hata oluştu")
 }
 
 type UpdateHizmetInput = Partial<CreateHizmetInput>
 
 export async function updateHizmet(id: number, data: UpdateHizmetInput) {
-  try {
+  return tryCatch(async () => {
+    const existingHizmet = await prisma.hizmetler.findUnique({
+      where: { id }
+    })
+    
+    if (!existingHizmet) {
+      throw new NotFoundError("Hizmet", id)
+    }
+    
     const hizmet = await prisma.hizmetler.update({
       where: { id },
       data: {
@@ -77,22 +80,25 @@ export async function updateHizmet(id: number, data: UpdateHizmetInput) {
       },
     })
     revalidatePath("/hizmetler")
-    return { hizmet }
-  } catch (error) {
-    console.error("Hizmet güncellenirken hata oluştu:", error)
-    return { error: "Hizmet güncellenirken bir hata oluştu." }
-  }
+    return hizmet
+  }, `Hizmet ID:${id} güncellenirken hata oluştu`)
 }
 
 export async function deleteHizmet(id: number) {
-  try {
+  return tryCatch(async () => {
+    // Hizmetin kullanımda olup olmadığını kontrol et
+    const kullaniliyor = await prisma.teklifKalemleri.findFirst({
+      where: { hizmetId: id }
+    })
+    
+    if (kullaniliyor) {
+      throw new Error("Bu hizmet bir veya daha fazla teklifte kullanılmaktadır ve silinemez.")
+    }
+    
     const hizmet = await prisma.hizmetler.delete({
       where: { id },
     })
     revalidatePath("/hizmetler")
-    return { hizmet }
-  } catch (error) {
-    console.error("Hizmet silinirken hata oluştu:", error)
-    return { error: "Hizmet silinirken bir hata oluştu." }
-  }
+    return hizmet
+  }, `Hizmet ID:${id} silinirken hata oluştu`)
 } 

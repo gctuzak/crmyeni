@@ -3,17 +3,24 @@ import { columns } from "./columns"
 import { getHizmetler } from "@/lib/actions/hizmet"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { decimalToNumber } from "@/lib/utils"
 
 export default async function HizmetlerPage() {
-  const { hizmetler, error } = await getHizmetler()
+  const { data, error } = await getHizmetler()
 
   if (error) {
     throw new Error(error)
   }
 
-  if (!hizmetler) {
+  if (!data) {
     throw new Error("Hizmetler bulunamadı.")
   }
+
+  // Decimal tipini number tipine dönüştür
+  const hizmetler = data.map(hizmet => ({
+    ...hizmet,
+    birimFiyat: decimalToNumber(hizmet.birimFiyat)
+  }))
 
   return (
     <div className="container mx-auto py-10">

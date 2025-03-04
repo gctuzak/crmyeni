@@ -50,8 +50,21 @@ export function Topbar() {
   }, [pathname])
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push("/sign-in")
+    try {
+      await signOut()
+      
+      // Tüm yerel önbelleği temizle
+      if (typeof window !== 'undefined') {
+        // Sayfayı tamamen yenileme (yerel durumu sıfırlamak için)
+        window.location.href = "/sign-in"
+      } else {
+        router.push("/sign-in")
+      }
+    } catch (error) {
+      console.error("Çıkış yapılırken hata oluştu:", error)
+      // Hata durumunda da login sayfasına yönlendir
+      router.push("/sign-in")
+    }
   }
 
   return (

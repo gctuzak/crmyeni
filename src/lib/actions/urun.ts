@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { PrismaClient, UrunHizmetGruplari, Urunler } from "@prisma/client"
 import { Decimal } from "@prisma/client/runtime/library"
 import { prisma } from "@/lib/prisma"
+import { ApiUrun, ApiHizmet } from "@/lib/types"
+import { DatabaseError, NotFoundError, tryCatch } from "@/lib/error"
 
 export async function getUrunHizmetGruplari() {
   try {
@@ -89,22 +91,17 @@ export async function deleteUrunHizmetGrubu(id: number) {
 }
 
 export async function getUrunler() {
-  try {
+  return tryCatch(async () => {
     const urunler = await prisma.urunler.findMany({
       include: {
         grup: true,
       },
-      orderBy: [
-        {
-          urunKodu: "asc",
-        },
-      ],
+      orderBy: {
+        urunKodu: "asc",
+      },
     })
-    return { urunler }
-  } catch (error) {
-    console.error("Ürünler getirilirken hata oluştu:", error)
-    return { error: "Ürünler getirilirken bir hata oluştu." }
-  }
+    return urunler
+  }, "Ürünler getirilirken hata oluştu")
 }
 
 export async function getUrun(id: number) {
@@ -191,24 +188,28 @@ export async function getTeklifKalemUrunleri() {
         id: true,
         urunKodu: true,
         urunAdi: true,
-        birim: true,
-        birimFiyat: true,
-        kdvOrani: true,
         grup: {
           select: {
+            id: true,
+            grupKodu: true,
             grupAdi: true,
           },
         },
+        birim: true,
+        birimFiyat: true,
+        kdvOrani: true,
+        grupId: true,
+        aciklama: true,
+        aktif: true,
       },
-      orderBy: [
-        {
-          urunKodu: "asc",
-        },
-      ],
-    })
+      orderBy: {
+        urunKodu: "asc",
+      },
+    }) as unknown as ApiUrun[]
+
     return { urunler }
   } catch (error) {
-    console.error("Ürünler getirilirken hata oluştu:", error)
+    console.error("Teklif kalemleri için ürünler getirilirken hata oluştu:", error)
     return { error: "Ürünler getirilirken bir hata oluştu." }
   }
 }
@@ -223,24 +224,28 @@ export async function getTeklifKalemHizmetleri() {
         id: true,
         hizmetKodu: true,
         hizmetAdi: true,
-        birim: true,
-        birimFiyat: true,
-        kdvOrani: true,
         grup: {
           select: {
+            id: true,
+            grupKodu: true,
             grupAdi: true,
           },
         },
+        birim: true,
+        birimFiyat: true,
+        kdvOrani: true,
+        grupId: true,
+        aciklama: true,
+        aktif: true,
       },
-      orderBy: [
-        {
-          hizmetKodu: "asc",
-        },
-      ],
-    })
+      orderBy: {
+        hizmetKodu: "asc",
+      },
+    }) as unknown as ApiHizmet[]
+
     return { hizmetler }
   } catch (error) {
-    console.error("Hizmetler getirilirken hata oluştu:", error)
+    console.error("Teklif kalemleri için hizmetler getirilirken hata oluştu:", error)
     return { error: "Hizmetler getirilirken bir hata oluştu." }
   }
 } 

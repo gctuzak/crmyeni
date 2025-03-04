@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
 import { UrunForm } from "@/components/urunler/urun-form"
 import { getUrun, getUrunHizmetGruplari } from "@/lib/actions/urun"
+import { formatUrunForForm } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface Props {
   params: {
@@ -113,24 +115,18 @@ export default async function UrunDuzenlePage({ params }: Props) {
     )
   }
 
-  const formattedUrun = {
-    id: urun.id,
-    urunKodu: urun.urunKodu,
-    urunAdi: urun.urunAdi,
-    grupId: urun.grupId,
-    birim: urun.birim,
-    birimFiyat: Number(urun.birimFiyat),
-    kdvOrani: urun.kdvOrani,
-    aciklama: urun.aciklama,
-    aktif: urun.aktif,
-  }
+  // Sadece ürün gruplarını filtrele
+  const urunGruplari = gruplar.filter(grup => grup.grupTipi === "URUN")
 
+  // Decimal tipini number'a dönüştür
+  const formattedUrun = formatUrunForForm(urun)
+  
   return (
     <div className="container mx-auto py-10">
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Ürün Düzenle</h1>
       </div>
-      <UrunForm urun={formattedUrun} gruplar={gruplar} />
+      <UrunForm urun={formattedUrun} gruplar={urunGruplari} />
     </div>
   )
 } 

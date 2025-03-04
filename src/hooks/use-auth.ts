@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth"
 
 interface Rol {
   id: number
@@ -14,7 +14,6 @@ interface Kullanici {
   ad: string
   soyad: string
   email: string
-  sifreHash: string
   rolId: number
   rol: Rol
 }
@@ -35,7 +34,7 @@ export function useAuth(): UseAuthReturn {
 
     async function loadUser() {
       try {
-        const user = await getUser()
+        const user = await getCurrentUser()
         if (isMounted) {
           setUser(user)
           setIsLoading(false)

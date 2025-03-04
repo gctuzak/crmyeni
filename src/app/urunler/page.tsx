@@ -3,17 +3,24 @@ import { columns } from "./columns"
 import { getUrunler } from "@/lib/actions/urun"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { decimalToNumber } from "@/lib/utils"
 
 export default async function UrunlerPage() {
-  const { urunler, error } = await getUrunler()
+  const { data, error } = await getUrunler()
 
   if (error) {
     throw new Error(error)
   }
 
-  if (!urunler) {
+  if (!data) {
     throw new Error("Ürünler bulunamadı.")
   }
+
+  // Decimal tipini number tipine dönüştür
+  const formattedUrunler = data.map(urun => ({
+    ...urun,
+    birimFiyat: decimalToNumber(urun.birimFiyat)
+  }))
 
   return (
     <div className="container mx-auto py-10">
@@ -23,7 +30,7 @@ export default async function UrunlerPage() {
           <Button>Yeni Ürün</Button>
         </Link>
       </div>
-      <DataTable columns={columns} data={urunler} />
+      <DataTable columns={columns} data={formattedUrunler} />
     </div>
   )
 } 

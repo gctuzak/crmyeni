@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { getHizmet, deleteHizmet } from "@/lib/actions/hizmet"
 import { redirect } from "next/navigation"
+import { formatHizmetForForm } from "@/lib/utils"
 
 interface Props {
   params: {
@@ -21,17 +22,7 @@ export default async function HizmetSilPage({ params }: Props) {
   }
 
   // Decimal tipini number'a dönüştür
-  const formattedHizmet = {
-    id: hizmet.id,
-    hizmetKodu: hizmet.hizmetKodu,
-    hizmetAdi: hizmet.hizmetAdi,
-    grupId: hizmet.grupId,
-    birim: hizmet.birim,
-    birimFiyat: Number(hizmet.birimFiyat),
-    kdvOrani: hizmet.kdvOrani,
-    aciklama: hizmet.aciklama,
-    aktif: hizmet.aktif,
-  }
+  const formattedHizmet = formatHizmetForForm(hizmet)
 
   async function handleDelete() {
     "use server"

@@ -27,6 +27,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { createHizmet, updateHizmet } from "@/lib/actions/hizmet"
 import { toast } from "sonner"
 import { UrunHizmetGruplari } from "@prisma/client"
+import { ButtonLoading } from "@/components/ui/loading"
+import { useState } from "react"
 
 const formSchema = z.object({
   hizmetKodu: z.string().min(1, {
@@ -82,6 +84,7 @@ const birimler = [
 
 export function HizmetForm({ hizmet, gruplar }: Props) {
   const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -98,6 +101,7 @@ export function HizmetForm({ hizmet, gruplar }: Props) {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true)
     try {
       if (hizmet) {
         const { error } = await updateHizmet(hizmet.id, values)
@@ -118,6 +122,8 @@ export function HizmetForm({ hizmet, gruplar }: Props) {
       router.refresh()
     } catch (error) {
       toast.error("Bir hata oluştu.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -260,8 +266,15 @@ export function HizmetForm({ hizmet, gruplar }: Props) {
             </FormItem>
           )}
         />
-        <Button type="submit">
-          {hizmet ? "Güncelle" : "Oluştur"}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <ButtonLoading className="mr-2" />
+              {hizmet ? "Güncelleniyor..." : "Oluşturuluyor..."}
+            </>
+          ) : (
+            <>{hizmet ? "Güncelle" : "Oluştur"}</>
+          )}
         </Button>
       </form>
     </Form>

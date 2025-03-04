@@ -1,11 +1,13 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { getUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth"
+import { decimalToNumber } from "@/lib/utils"
+import { Decimal } from "@prisma/client/runtime/library"
 
 interface Firsat {
   id: number
-  olasilik: number
+  olasilik: number | Decimal
   asama: {
     id: number
     asamaAdi: string
@@ -14,7 +16,7 @@ interface Firsat {
 
 interface Teklif {
   id: number
-  toplamTutar: number
+  toplamTutar: number | Decimal
 }
 
 interface Asama {
@@ -24,7 +26,7 @@ interface Asama {
 
 export async function getDashboardData() {
   try {
-    const user = await getUser()
+    const user = await getCurrentUser()
     if (!user) {
       return { error: "Oturum açmış kullanıcı bulunamadı." }
     }
@@ -100,13 +102,13 @@ export async function getDashboardData() {
     })
 
     // Toplam fırsat tutarı
-    const toplamFirsatTutari = acikFirsatlar.reduce((total: number, firsat: Firsat) => {
-      return total + Number(firsat.olasilik)
+    const toplamFirsatTutari = acikFirsatlar.reduce((total: number, firsat: any) => {
+      return total + decimalToNumber(firsat.olasilik)
     }, 0)
 
     // Toplam teklif tutarı
-    const toplamTeklifTutari = bekleyenTeklifler.reduce((total: number, teklif: Teklif) => {
-      return total + Number(teklif.toplamTutar)
+    const toplamTeklifTutari = bekleyenTeklifler.reduce((total: number, teklif: any) => {
+      return total + decimalToNumber(teklif.toplamTutar)
     }, 0)
 
     // Satış performansı (son 12 ay)
@@ -130,7 +132,7 @@ export async function getDashboardData() {
 
       aylar.push({
         name: baslangic.toLocaleString('tr-TR', { month: 'short' }),
-        total: Number(aylikTeklifler._sum.toplamTutar || 0)
+        total: decimalToNumber(aylikTeklifler._sum.toplamTutar)
       })
     }
 

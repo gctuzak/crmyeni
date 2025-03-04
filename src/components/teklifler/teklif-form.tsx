@@ -30,6 +30,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trash } from "lucide-react"
 import { createTeklif, generateTeklifNo } from "@/lib/actions/teklif"
+import { ApiUrun, ApiHizmet, TeklifKalemi, CreateTeklifInput } from "@/lib/types"
+import { decimalToNumber, formatTeklifKalemiForApi } from "@/lib/utils"
 
 const formSchema = z.object({
   teklifNo: z.string().min(1, {
@@ -60,7 +62,7 @@ const formSchema = z.object({
     birim: z.string().min(1, "Birim zorunludur"),
     birimFiyat: z.number().min(0, "Birim fiyat 0'dan küçük olamaz"),
     kdvOrani: z.number().min(0, "KDV oranı 0'dan küçük olamaz"),
-    aciklama: z.string().optional(),
+    aciklama: z.string().optional().nullable(),
   })).refine((kalemler) => {
     return kalemler.every((kalem) => {
       if (kalem.kalemTipi === "URUN") {
@@ -68,11 +70,13 @@ const formSchema = z.object({
       } else {
         return !!kalem.hizmetId
       }
-    }), {
-      message: "Her kalem için ürün veya hizmet seçilmelidir"
-    }
+    })
+  }, {
+    message: "Her kalem için ürün veya hizmet seçilmelidir"
   }),
 })
+
+type FormValues = z.infer<typeof formSchema>
 
 type Props = {
   musteriler: {
@@ -85,11 +89,11 @@ type Props = {
 
 export function TeklifForm({ musteriler }: Props) {
   const router = useRouter()
-  const [urunler, setUrunler] = useState<any[]>([])
-  const [hizmetler, setHizmetler] = useState<any[]>([])
+  const [urunler, setUrunler] = useState<ApiUrun[]>([])
+  const [hizmetler, setHizmetler] = useState<ApiHizmet[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       teklifNo: "",
@@ -154,7 +158,7 @@ export function TeklifForm({ musteriler }: Props) {
   }, [form.watch("musteriId")])
 
   const handleAddKalem = (tip: "URUN" | "HIZMET") => {
-    const yeniKalem = {
+    const yeniKalem: TeklifKalemi = {
       kalemTipi: tip,
       urunId: null,
       hizmetId: null,
@@ -169,17 +173,6 @@ export function TeklifForm({ musteriler }: Props) {
     })
   }
 
-  type TeklifKalemi = {
-    kalemTipi: "URUN" | "HIZMET"
-    urunId?: number
-    hizmetId?: number
-    miktar: number
-    birim: string
-    birimFiyat: number
-    kdvOrani: number
-    aciklama?: string
-  }
-
   const handleKalemChange = (
     index: number,
     field: keyof TeklifKalemi,
@@ -192,14 +185,14 @@ export function TeklifForm({ musteriler }: Props) {
       const urun = urunler.find(u => u.id === Number(value))
       if (urun) {
         kalem.birim = urun.birim
-        kalem.birimFiyat = Number(urun.birimFiyat)
+        kalem.birimFiyat = decimalToNumber(urun.birimFiyat)
         kalem.kdvOrani = urun.kdvOrani
       }
     } else if (field === "hizmetId" && value) {
       const hizmet = hizmetler.find(h => h.id === Number(value))
       if (hizmet) {
         kalem.birim = hizmet.birim
-        kalem.birimFiyat = Number(hizmet.birimFiyat)
+        kalem.birimFiyat = decimalToNumber(hizmet.birimFiyat)
         kalem.kdvOrani = hizmet.kdvOrani
       }
     }
@@ -208,9 +201,9 @@ export function TeklifForm({ musteriler }: Props) {
       kalem.kalemTipi = value
       // Tip değiştiğinde ilgili ID'yi temizle
       if (value === "URUN") {
-        delete kalem.hizmetId
+        kalem.hizmetId = null
       } else {
-        delete kalem.urunId
+        kalem.urunId = null
       }
     } else if (field === "birim" || field === "aciklama") {
       kalem[field] = value as string
@@ -232,19 +225,15 @@ export function TeklifForm({ musteriler }: Props) {
     })
   }
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
     try {
-      // Boş alanları temizle
-      const cleanedValues = {
+      // API için verileri dönüştür
+      const apiValues: CreateTeklifInput = {
         ...values,
-        teklifKalemleri: values.teklifKalemleri.map(kalem => ({
-          ...kalem,
-          urunId: kalem.kalemTipi === "URUN" ? kalem.urunId : undefined,
-          hizmetId: kalem.kalemTipi === "HIZMET" ? kalem.hizmetId : undefined,
-        }))
+        teklifKalemleri: values.teklifKalemleri.map(kalem => formatTeklifKalemiForApi(kalem))
       }
 
-      const { error } = await createTeklif(cleanedValues)
+      const { error } = await createTeklif(apiValues)
       if (error) {
         toast.error(error)
         return
@@ -499,7 +488,7 @@ export function TeklifForm({ musteriler }: Props) {
                       </TableCell>
                       <TableCell>
                         <Input
-                          value={kalem.aciklama}
+                          value={kalem.aciklama || ""}
                           onChange={(e) => handleKalemChange(index, "aciklama", e.target.value)}
                         />
                       </TableCell>

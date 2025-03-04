@@ -1,12 +1,10 @@
 "use server"
 
-import { PrismaClient } from "@prisma/client"
 import { revalidatePath } from "next/cache"
-import { TeklifForm } from "../validations/teklif"
-import { getUser } from "../auth"
+import { prisma } from "@/lib/prisma"
 import { Decimal } from "@prisma/client/runtime/library"
-
-const prisma = new PrismaClient()
+import { requireAuth } from "@/lib/auth"
+import { TeklifForm } from "../validations/teklif"
 
 // Teklif numarası oluşturma fonksiyonu
 export async function generateTeklifNo(musteriId: number) {
@@ -133,6 +131,9 @@ type CreateTeklifInput = {
 
 export async function createTeklif(data: CreateTeklifInput) {
   try {
+    // Oturum açmış kullanıcıyı al
+    const currentUser = await requireAuth()
+
     // Toplam tutarı hesapla
     let toplamTutar = new Decimal(0)
     for (const kalem of data.teklifKalemleri) {
@@ -151,7 +152,7 @@ export async function createTeklif(data: CreateTeklifInput) {
         durum: data.durum,
         sonGecerlilikTarihi: new Date(data.sonGecerlilikTarihi),
         notlar: data.notlar,
-        kullaniciId: 1, // TODO: Gerçek kullanıcı ID'si kullanılacak
+        kullaniciId: currentUser.id, // Oturum açmış kullanıcı ID'si
         teklifKalemleri: {
           create: data.teklifKalemleri.map(kalem => ({
             kalemTipi: kalem.kalemTipi,
@@ -174,7 +175,7 @@ export async function createTeklif(data: CreateTeklifInput) {
     return { teklif }
   } catch (error) {
     console.error("Teklif oluşturulurken hata oluştu:", error)
-    return { error: "Teklif oluşturulurken bir hata oluştu." }
+    return { error: error instanceof Error ? error.message : "Teklif oluşturulurken bir hata oluştu." }
   }
 }
 
@@ -182,52 +183,86 @@ type UpdateTeklifInput = Partial<CreateTeklifInput>
 
 export async function updateTeklif(id: number, data: UpdateTeklifInput) {
   try {
-    // Önce mevcut teklif kalemlerini sil
-    await prisma.teklifKalemleri.deleteMany({
-      where: { teklifId: id },
-    })
-
-    // Toplam tutarı hesapla
-    let toplamTutar = new Decimal(0)
-    if (data.teklifKalemleri) {
-      for (const kalem of data.teklifKalemleri) {
-        const tutar = new Decimal(kalem.birimFiyat).mul(kalem.miktar)
-        toplamTutar = toplamTutar.add(tutar)
+    // Transaction ile işlemi gerçekleştir
+    const teklif = await prisma.$transaction(async (tx) => {
+      // Önce mevcut teklifi kontrol et
+      const existingTeklif = await tx.teklifler.findUnique({
+        where: { id },
+        include: {
+          teklifKalemleri: true
+        }
+      })
+      
+      if (!existingTeklif) {
+        throw new Error(`Teklif bulunamadı (ID: ${id})`)
       }
-    }
-
-    const teklif = await prisma.teklifler.update({
-      where: { id },
-      data: {
-        ...(data.teklifNo && { teklifNo: data.teklifNo }),
-        ...(data.baslik && { baslik: data.baslik }),
-        ...(data.musteriId && { musteriId: data.musteriId }),
-        aciklama: data.aciklama,
-        ...(data.teklifKalemleri && { toplamTutar }),
-        ...(data.paraBirimi && { paraBirimi: data.paraBirimi }),
-        ...(data.durum && { durum: data.durum }),
-        ...(data.sonGecerlilikTarihi && {
-          sonGecerlilikTarihi: new Date(data.sonGecerlilikTarihi),
-        }),
-        notlar: data.notlar,
-        ...(data.teklifKalemleri && {
-          teklifKalemleri: {
-            create: data.teklifKalemleri.map(kalem => ({
-              kalemTipi: kalem.kalemTipi,
-              urunId: kalem.kalemTipi === "URUN" ? kalem.urunId : null,
-              hizmetId: kalem.kalemTipi === "HIZMET" ? kalem.hizmetId : null,
-              miktar: kalem.miktar,
-              birim: kalem.birim,
-              birimFiyat: new Decimal(kalem.birimFiyat),
-              kdvOrani: kalem.kdvOrani,
-              aciklama: kalem.aciklama,
-            })),
+      
+      // Mevcut teklif kalemlerini sil
+      if (data.teklifKalemleri) {
+        await tx.teklifKalemleri.deleteMany({
+          where: { teklifId: id },
+        })
+        
+        // Toplam tutarı hesapla
+        let toplamTutar = new Decimal(0)
+        for (const kalem of data.teklifKalemleri) {
+          const tutar = new Decimal(kalem.birimFiyat).mul(kalem.miktar)
+          toplamTutar = toplamTutar.add(tutar)
+        }
+        
+        // Teklifi ve kalemleri güncelle
+        return await tx.teklifler.update({
+          where: { id },
+          data: {
+            ...(data.teklifNo && { teklifNo: data.teklifNo }),
+            ...(data.baslik && { baslik: data.baslik }),
+            ...(data.musteriId && { musteriId: data.musteriId }),
+            aciklama: data.aciklama,
+            toplamTutar,
+            ...(data.paraBirimi && { paraBirimi: data.paraBirimi }),
+            ...(data.durum && { durum: data.durum }),
+            ...(data.sonGecerlilikTarihi && {
+              sonGecerlilikTarihi: new Date(data.sonGecerlilikTarihi),
+            }),
+            notlar: data.notlar,
+            teklifKalemleri: {
+              create: data.teklifKalemleri.map(kalem => ({
+                kalemTipi: kalem.kalemTipi,
+                urunId: kalem.kalemTipi === "URUN" ? kalem.urunId : null,
+                hizmetId: kalem.kalemTipi === "HIZMET" ? kalem.hizmetId : null,
+                miktar: kalem.miktar,
+                birim: kalem.birim,
+                birimFiyat: new Decimal(kalem.birimFiyat),
+                kdvOrani: kalem.kdvOrani,
+                aciklama: kalem.aciklama,
+              })),
+            },
           },
-        }),
-      },
-      include: {
-        teklifKalemleri: true,
-      },
+          include: {
+            teklifKalemleri: true,
+          },
+        })
+      } else {
+        // Sadece teklif bilgilerini güncelle
+        return await tx.teklifler.update({
+          where: { id },
+          data: {
+            ...(data.teklifNo && { teklifNo: data.teklifNo }),
+            ...(data.baslik && { baslik: data.baslik }),
+            ...(data.musteriId && { musteriId: data.musteriId }),
+            aciklama: data.aciklama,
+            ...(data.paraBirimi && { paraBirimi: data.paraBirimi }),
+            ...(data.durum && { durum: data.durum }),
+            ...(data.sonGecerlilikTarihi && {
+              sonGecerlilikTarihi: new Date(data.sonGecerlilikTarihi),
+            }),
+            notlar: data.notlar,
+          },
+          include: {
+            teklifKalemleri: true,
+          },
+        })
+      }
     })
 
     revalidatePath("/teklifler")

@@ -2,12 +2,14 @@ import { cookies } from "next/headers"
 import { jwtVerify } from "jose"
 import { NextResponse } from "next/server"
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-secret"
+// Auth modülündeki sabit değerlerle aynı olmalı
+const JWT_SECRET = process.env.JWT_SECRET || "gizli-anahtar-degistirin"
 const secret = new TextEncoder().encode(JWT_SECRET)
+const COOKIE_NAME = "auth_token"
 
 export async function GET() {
   try {
-    const token = cookies().get("auth-token")?.value
+    const token = cookies().get(COOKIE_NAME)?.value
 
     if (!token) {
       return NextResponse.json({ authenticated: false })

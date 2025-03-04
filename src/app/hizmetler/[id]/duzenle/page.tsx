@@ -1,6 +1,7 @@
 import { HizmetForm } from "@/components/hizmetler/hizmet-form"
 import { getHizmet } from "@/lib/actions/hizmet"
 import { getUrunHizmetGruplari } from "@/lib/actions/urun"
+import { formatHizmetForForm } from "@/lib/utils"
 
 interface Props {
   params: {
@@ -34,17 +35,7 @@ export default async function HizmetDuzenlePage({ params }: Props) {
   const hizmetGruplari = gruplar.filter(grup => grup.grupTipi === "HIZMET")
 
   // Decimal tipini number'a dönüştür
-  const formattedHizmet = {
-    id: hizmet.id,
-    hizmetKodu: hizmet.hizmetKodu,
-    hizmetAdi: hizmet.hizmetAdi,
-    grupId: hizmet.grupId,
-    birim: hizmet.birim,
-    birimFiyat: Number(hizmet.birimFiyat),
-    kdvOrani: hizmet.kdvOrani,
-    aciklama: hizmet.aciklama,
-    aktif: hizmet.aktif,
-  }
+  const formattedHizmet = formatHizmetForForm(hizmet)
 
   return (
     <div className="container mx-auto py-10">
