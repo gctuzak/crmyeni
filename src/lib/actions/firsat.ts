@@ -1,10 +1,8 @@
 "use server"
 
-import { PrismaClient } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import type { FirsatForm } from "../validations/firsat"
-
-const prisma = new PrismaClient()
+import { prisma } from "../prisma"
 
 export async function getFirsatlar() {
   try {
@@ -120,27 +118,60 @@ export async function createFirsat(data: FirsatForm) {
 
 export async function updateFirsat(id: number, data: FirsatForm) {
   try {
+    console.log("Güncelleme verileri:", {id, data});
+    
+    // Gelen verileri doğru tiplere dönüştür
+    const processedData: any = {
+      musteriId: Number(data.musteriId),
+      baslik: String(data.baslik),
+      asamaId: Number(data.asamaId),
+      olasilik: Number(data.olasilik),
+    };
+    
+    // Tarih alanını ayrıca işle
+    if (data.beklenenKapanisTarihi) {
+      try {
+        processedData.beklenenKapanisTarihi = new Date(data.beklenenKapanisTarihi);
+      } catch (err) {
+        console.error("Tarih dönüşüm hatası:", err);
+        return { error: "Tarih formatı geçersiz" };
+      }
+    }
+    
+    console.log("İşlenmiş veriler:", processedData);
+    
     const firsat = await prisma.firsatlar.update({
       where: { id },
-      data: {
-        musteriId: data.musteriId,
-        baslik: data.baslik,
-        beklenenKapanisTarihi: new Date(data.beklenenKapanisTarihi),
-        asamaId: data.asamaId,
-        olasilik: data.olasilik,
-      },
+      data: processedData,
       include: {
         musteri: true,
         asama: true,
       },
-    })
+    });
 
-    revalidatePath("/firsatlar")
-    revalidatePath(`/musteriler/${data.musteriId}`)
-    revalidatePath(`/firsatlar/${id}`)
-    return { firsat }
-  } catch (error) {
-    return { error: "Fırsat güncellenirken bir hata oluştu." }
+    revalidatePath("/firsatlar");
+    revalidatePath(`/musteriler/${data.musteriId}`);
+    revalidatePath(`/firsatlar/${id}`);
+    return { firsat };
+  } catch (error: any) {
+    console.error("Fırsat güncelleme hatası (detaylı):", error);
+    
+    // Hata koduna göre daha açıklayıcı mesajlar
+    let errorMessage = "Fırsat güncellenirken bir hata oluştu.";
+    
+    if (error.code === "P2025") {
+      errorMessage = "Fırsat bulunamadı.";
+    } else if (error.code === "P2003") {
+      if (error.meta?.field_name?.includes("AsamaID")) {
+        errorMessage = "Seçilen aşama veritabanında bulunamadı. Lütfen geçerli bir aşama seçin.";
+      } else if (error.meta?.field_name?.includes("MusteriID")) {
+        errorMessage = "Seçilen müşteri veritabanında bulunamadı. Lütfen geçerli bir müşteri seçin.";
+      } else {
+        errorMessage = "İlişkili bir kayıt bulunamadı. Lütfen seçimlerinizi kontrol edin.";
+      }
+    }
+    
+    return { error: errorMessage };
   }
 }
 

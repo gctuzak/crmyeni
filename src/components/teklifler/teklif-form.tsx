@@ -79,7 +79,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 type Props = {
-  musteriler: {
+  musteriler?: {
     id: number
     firmaAdi?: string | null
     ad?: string | null
@@ -87,7 +87,7 @@ type Props = {
   }[]
 }
 
-export function TeklifForm({ musteriler }: Props) {
+export function TeklifForm({ musteriler = [] }: Props) {
   const router = useRouter()
   const [urunler, setUrunler] = useState<ApiUrun[]>([])
   const [hizmetler, setHizmetler] = useState<ApiHizmet[]>([])
@@ -297,11 +297,11 @@ export function TeklifForm({ musteriler }: Props) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {musteriler.map((musteri) => (
+                    {musteriler?.map((musteri) => (
                       <SelectItem key={musteri.id} value={musteri.id.toString()}>
                         {musteri.firmaAdi || `${musteri.ad} ${musteri.soyad}`}
                       </SelectItem>
-                    ))}
+                    )) || <SelectItem value="0">Müşteri bulunamadı</SelectItem>}
                   </SelectContent>
                 </Select>
                 <FormMessage />
