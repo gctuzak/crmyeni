@@ -75,7 +75,11 @@ export function FirsatDetay({ firsat }: FirsatDetayProps) {
           </Select>
           <Button
             variant="outline"
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => {
+              console.log("Düzenleme durumu değişiyor, mevcut durum:", isEditing);
+              setIsEditing(!isEditing);
+              console.log("Düzenleme durumu yeni değer:", !isEditing);
+            }}
           >
             {isEditing ? "İptal" : "Düzenle"}
           </Button>
@@ -93,9 +97,11 @@ export function FirsatDetay({ firsat }: FirsatDetayProps) {
           initialData={{
             musteriId: firsat.musteriId,
             baslik: firsat.baslik,
-            beklenenKapanisTarihi: format(new Date(firsat.beklenenKapanisTarihi), "yyyy-MM-dd'T'HH:mm"),
+            beklenenKapanisTarihi: firsat.beklenenKapanisTarihi 
+              ? format(new Date(firsat.beklenenKapanisTarihi), "yyyy-MM-dd'T'HH:mm") 
+              : "",
             asamaId: firsat.asamaId,
-            olasilik: typeof firsat.olasilik === 'number' ? firsat.olasilik : Number(firsat.olasilik),
+            olasilik: Number(firsat.olasilik),
             id: firsat.id,
           }}
         />
@@ -105,7 +111,9 @@ export function FirsatDetay({ firsat }: FirsatDetayProps) {
             <div>
               <h2 className="text-sm font-medium text-gray-500">Beklenen Kapanış Tarihi</h2>
               <p className="mt-1">
-                {format(new Date(firsat.beklenenKapanisTarihi), "PPP", { locale: tr })}
+                {firsat.beklenenKapanisTarihi 
+                  ? format(new Date(firsat.beklenenKapanisTarihi as Date), "PPP", { locale: tr }) 
+                  : "Tarih Belirtilmemiş"}
               </p>
             </div>
             <div>

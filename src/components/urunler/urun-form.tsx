@@ -64,10 +64,11 @@ type Props = {
     aciklama: string | null
     aktif: boolean
   }
-  gruplar: {
+  gruplar?: {
     id: number
     grupKodu: string
     grupAdi: string
+    grupTipi?: string
   }[]
 }
 
@@ -86,7 +87,8 @@ const birimler = [
 
 export function UrunForm({ urun, gruplar }: Props) {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [localGruplar, setLocalGruplar] = useState<typeof gruplar>(gruplar || [])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -102,24 +104,31 @@ export function UrunForm({ urun, gruplar }: Props) {
     },
   })
 
-  useEffect(() => {
-    async function loadGruplar() {
-      try {
-        const result = await getUrunHizmetGruplari()
-        if (result.error) {
-          toast.error(result.error)
-        } else if (result.gruplar) {
-          setGruplar(result.gruplar.filter(g => g.grupTipi === "URUN"))
-        }
-      } catch (error) {
-        toast.error("Gruplar yüklenirken bir hata oluştu")
-      } finally {
-        setIsLoading(false)
+  // Grup yükleme fonksiyonu
+  async function loadGruplar() {
+    try {
+      const result = await getUrunHizmetGruplari()
+      if (result.error) {
+        toast.error(result.error)
+      } else if (result.gruplar) {
+        setLocalGruplar(result.gruplar.filter(g => g.grupTipi === "URUN"))
       }
+    } catch (error) {
+      toast.error("Gruplar yüklenirken bir hata oluştu")
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    loadGruplar()
-  }, [])
+  useEffect(() => {
+    // Eğer dışarıdan gruplar gelmezse veritabanından yükle
+    if (!gruplar || gruplar.length === 0) {
+      setIsLoading(true);
+      loadGruplar();
+    } else {
+      setLocalGruplar(gruplar)
+    }
+  }, [gruplar])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -196,11 +205,15 @@ export function UrunForm({ urun, gruplar }: Props) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {gruplar.map((grup) => (
+                    {localGruplar?.map((grup) => (
                       <SelectItem key={grup.id} value={grup.id.toString()}>
                         {grup.grupAdi}
                       </SelectItem>
-                    ))}
+                    )) || (
+                      <SelectItem value="-1" disabled>
+                        Grup bulunamadı
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -213,9 +226,23 @@ export function UrunForm({ urun, gruplar }: Props) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Birim</FormLabel>
-                <FormControl>
-                  <Input placeholder="Birim" {...field} />
-                </FormControl>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value || undefined}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Birim seçin" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {birimler.map((birim) => (
+                      <SelectItem key={birim} value={birim}>
+                        {birim}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

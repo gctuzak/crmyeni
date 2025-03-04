@@ -27,7 +27,7 @@ interface Urun {
   aktif: boolean
 }
 
-export default async function UrunDuzenlePage({ params }: Props) {
+export default function UrunDuzenlePage({ params }: Props) {
   const router = useRouter()
   const { user, isLoading: isAuthLoading } = useAuth()
   const [urun, setUrun] = useState<Urun | null>(null)
@@ -70,7 +70,9 @@ export default async function UrunDuzenlePage({ params }: Props) {
         if (result.error) {
           setError(result.error)
         } else if (result.gruplar) {
-          setGruplar(result.gruplar)
+          // Sadece ürün tipindeki grupları filtrele
+          const urunGruplari = result.gruplar.filter(grup => grup.grupTipi === "URUN")
+          setGruplar(urunGruplari)
         }
       } catch (error) {
         console.error("Gruplar yüklenirken hata oluştu:", error)
@@ -115,9 +117,6 @@ export default async function UrunDuzenlePage({ params }: Props) {
     )
   }
 
-  // Sadece ürün gruplarını filtrele
-  const urunGruplari = gruplar.filter(grup => grup.grupTipi === "URUN")
-
   // Decimal tipini number'a dönüştür
   const formattedUrun = formatUrunForForm(urun)
   
@@ -126,7 +125,7 @@ export default async function UrunDuzenlePage({ params }: Props) {
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Ürün Düzenle</h1>
       </div>
-      <UrunForm urun={formattedUrun} gruplar={urunGruplari} />
+      <UrunForm urun={formattedUrun} gruplar={gruplar} />
     </div>
   )
 } 
