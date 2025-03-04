@@ -6,6 +6,7 @@ import { Decimal } from "@prisma/client/runtime/library"
 import { prisma } from "@/lib/prisma"
 import { ApiUrun, ApiHizmet } from "@/lib/types"
 import { DatabaseError, NotFoundError, tryCatch } from "@/lib/error"
+import { serializable } from "@/lib/utils"
 
 export async function getUrunHizmetGruplari() {
   try {
@@ -207,7 +208,10 @@ export async function getTeklifKalemUrunleri() {
       },
     }) as unknown as ApiUrun[]
 
-    return { urunler }
+    // Decimal objelerini serialize et
+    const serializableUrunler = serializable(urunler)
+
+    return { urunler: serializableUrunler }
   } catch (error) {
     console.error("Teklif kalemleri için ürünler getirilirken hata oluştu:", error)
     return { error: "Ürünler getirilirken bir hata oluştu." }
@@ -243,7 +247,10 @@ export async function getTeklifKalemHizmetleri() {
       },
     }) as unknown as ApiHizmet[]
 
-    return { hizmetler }
+    // Decimal objelerini serialize et
+    const serializableHizmetler = serializable(hizmetler)
+
+    return { hizmetler: serializableHizmetler }
   } catch (error) {
     console.error("Teklif kalemleri için hizmetler getirilirken hata oluştu:", error)
     return { error: "Hizmetler getirilirken bir hata oluştu." }

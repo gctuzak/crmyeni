@@ -15,6 +15,56 @@ export function formatCurrency(amount: number) {
 }
 
 /**
+ * Decimal içeren verileri (objeler, diziler) JSON serileştirilebilir hale getirir
+ * Bu fonksiyon, Next.js'in Server Component'lerinden Client Component'lere aktarım sırasındaki
+ * "Only plain objects can be passed to Client Components from Server Components. Decimal objects are not supported."
+ * hatasını çözmek için kullanılır.
+ */
+export function serializable<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  
+  // Array'leri işle
+  if (Array.isArray(data)) {
+    return data.map(item => serializable(item)) as unknown as T;
+  }
+  
+  // Object'leri işle
+  if (typeof data === 'object') {
+    // Date objesi ise dokunma
+    if (data instanceof Date) {
+      return data;
+    }
+    
+    // Decimal objesi ise veya toString metodu varsa
+    if ('toString' in data && typeof data.toString === 'function') {
+      // Prisma Decimal tipini kontrol et
+      if (
+        // Prisma Decimal özellikleri
+        's' in data || 
+        'e' in data || 
+        'd' in data
+      ) {
+        // Number'a dönüştür
+        return Number(data.toString()) as unknown as T;
+      }
+    }
+    
+    // Object'in tüm property'lerini dönüştür
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      result[key] = serializable(value);
+    }
+    
+    return result as T;
+  }
+  
+  // Primitive değerleri olduğu gibi döndür
+  return data;
+}
+
+/**
  * Decimal veri tipini number'a dönüştürür
  */
 export function decimalToNumber(decimal: Decimal | number | null | undefined | { toString: () => string }): number {

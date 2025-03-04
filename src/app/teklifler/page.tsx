@@ -2,6 +2,7 @@ import { getTeklifler } from "@/lib/actions/teklif"
 import { Button } from "@/components/ui/button"
 import { TeklifListesi } from "@/components/teklifler/teklif-listesi"
 import Link from "next/link"
+import { serializable } from "@/lib/utils"
 
 export default async function TekliflerPage() {
   const { teklifler, error } = await getTeklifler()
@@ -14,6 +15,9 @@ export default async function TekliflerPage() {
     )
   }
 
+  // Decimal objelerini serialize et
+  const serializableTeklifler = serializable(teklifler || [])
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
@@ -23,7 +27,7 @@ export default async function TekliflerPage() {
         </Button>
       </div>
 
-      <TeklifListesi teklifler={teklifler || []} />
+      <TeklifListesi teklifler={serializableTeklifler} />
     </div>
   )
 } 

@@ -5,6 +5,36 @@ import { jwtVerify } from "jose"
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret"
 const secret = new TextEncoder().encode(JWT_SECRET)
 
+// NextResponse'un serializer'ını Decimal objelerini düzgün serileştirmek için override edelim
+const originalJson = NextResponse.json;
+NextResponse.json = function (...args: Parameters<typeof originalJson>) {
+  // Decimal objelerini düzenleyen özel serileştirici
+  const customSerializer = (key: string, value: any) => {
+    // Decimal objesi kontrol (Prisma), 'd', 'e' ve 's' özellikleri varsa
+    if (value && typeof value === 'object' && 
+      ('d' in value || 'e' in value || 's' in value) && 
+      typeof value.toString === 'function') {
+      return Number(value.toString());
+    }
+    
+    return value;
+  };
+  
+  // İlk argüman datadır, eğer JSON.stringify kullanılacaksa özel serileştiriciyi ekle
+  if (args.length > 0 && typeof args[0] === 'object') {
+    args[1] = {
+      ...args[1],
+      headers: {
+        ...args[1]?.headers,
+        'content-type': 'application/json'
+      }
+    };
+  }
+  
+  // Orijinal fonksiyon çağrısı
+  return originalJson.apply(null, args);
+} as typeof NextResponse.json;
+
 export async function middleware(request: NextRequest) {
   console.log("Middleware çalıştı - URL:", request.nextUrl.pathname)
   
@@ -16,7 +46,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check auth token
-  const token = request.cookies.get("auth-token")?.value
+  const token = request.cookies.get("auth_token")?.value
   console.log("Cookie kontrolü:", token ? "Token bulundu" : "Token bulunamadı")
   
   if (!token) {

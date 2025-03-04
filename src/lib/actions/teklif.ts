@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Decimal } from "@prisma/client/runtime/library"
 import { requireAuth } from "@/lib/auth"
 import { TeklifForm } from "../validations/teklif"
+import { serializable } from "@/lib/utils"
 
 // Teklif numarası oluşturma fonksiyonu
 export async function generateTeklifNo(musteriId: number) {
@@ -50,6 +51,7 @@ export async function getTeklifler() {
         olusturmaTarihi: "desc",
       },
     })
+    
     return { teklifler }
   } catch (error) {
     console.error("Teklifler getirilirken hata oluştu:", error)
@@ -72,6 +74,7 @@ export async function getTeklif(id: number) {
         },
       },
     })
+    
     return { teklif }
   } catch (error) {
     console.error("Teklif getirilirken hata oluştu:", error)

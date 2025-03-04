@@ -1,6 +1,7 @@
 import { getTeklif } from "@/lib/actions/teklif"
 import { TeklifDetay } from "@/components/teklifler/teklif-detay"
 import { notFound } from "next/navigation"
+import { serializable } from "@/lib/utils"
 
 interface TeklifDetayPageProps {
   params: {
@@ -23,5 +24,8 @@ export default async function TeklifDetayPage({ params }: TeklifDetayPageProps) 
     notFound()
   }
 
-  return <TeklifDetay teklif={teklif} />
+  // Decimal objelerini düzenle
+  const serializableTeklif = serializable(teklif)
+
+  return <TeklifDetay teklif={serializableTeklif} />
 } 
