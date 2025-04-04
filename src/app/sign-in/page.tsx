@@ -14,6 +14,7 @@ export default function SignInPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,9 +50,7 @@ export default function SignInPage() {
       setIsRedirecting(true)
       
       // Sayfayı yenile ve ana sayfaya yönlendir
-      setTimeout(() => {
-        window.location.href = "/"
-      }, 500)
+      window.location.href = "/"
     } catch (error) {
       console.error("Giriş hatası:", error)
       setError("Giriş yapılırken bir hata oluştu")
@@ -62,19 +61,44 @@ export default function SignInPage() {
 
   // Eğer kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
   useEffect(() => {
+    let isMounted = true;
+    
     async function checkAuth() {
       try {
+        // Kullanıcının oturum durumunu kontrol et
+        setCheckingAuth(true)
         const response = await fetch("/api/auth/check")
         const data = await response.json()
-        if (data.authenticated) {
-          window.location.href = "/"
+        
+        if (data.authenticated && isMounted && !isRedirecting) {
+          console.log("Kullanıcı zaten giriş yapmış, yönlendiriliyor...")
+          router.replace("/")
         }
       } catch (error) {
         console.error("Auth kontrolü hatası:", error)
+      } finally {
+        if (isMounted) {
+          setCheckingAuth(false)
+        }
       }
     }
+    
     checkAuth()
-  }, [])
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [router, isRedirecting])
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-gray-500">Kontrol ediliyor...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (isRedirecting) {
     return (

@@ -15,6 +15,8 @@ import {
   Wrench
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useEffect, useState } from "react"
+import { getAyar } from "@/lib/actions/ayarlar"
 
 const menuItems = [
   {
@@ -70,13 +72,39 @@ const adminMenuItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
+  const [logo, setLogo] = useState<string>("")
+
+  useEffect(() => {
+    async function loadLogo() {
+      try {
+        const result = await getAyar("logo")
+        if (result.deger) {
+          setLogo(result.deger)
+        }
+      } catch (error) {
+        console.error("Logo yüklenirken hata oluştu:", error)
+      }
+    }
+    loadLogo()
+  }, [])
 
   const isAdmin = user?.rolId === 1
 
   return (
     <div className="w-64 bg-white dark:bg-gray-800 h-screen fixed left-0 top-0 border-r">
-      <div className="p-4 border-b">
-        <h1 className="text-2xl font-bold">CRM</h1>
+      <div className="p-4 border-b flex items-center justify-center">
+        {logo ? (
+          <div className="h-10 w-auto relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logo}
+              alt="Logo"
+              className="h-full w-auto object-contain"
+            />
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold">CRM</h1>
+        )}
       </div>
       <nav className="p-4">
         <ul className="space-y-2">

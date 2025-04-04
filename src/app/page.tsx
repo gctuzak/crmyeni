@@ -9,6 +9,7 @@ import { SalesFunnel } from "@/components/dashboard/sales-funnel"
 import { getDashboardData } from "@/lib/actions/dashboard"
 import { useAuth } from "@/hooks/use-auth"
 import { formatCurrency } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 interface DashboardData {
   toplamMusteri: number
@@ -58,14 +59,17 @@ export default function DashboardPage() {
 
     if (!isAuthLoading && user) {
       loadDashboardData()
+    } else if (!isAuthLoading && !user) {
+      setIsLoading(false)
     }
   }, [user, isAuthLoading])
 
   useEffect(() => {
-    if (!isAuthLoading && !user) {
-      router.push("/sign-in")
+    if (!isAuthLoading && !user && !error) {
+      console.log("Dashboard: Kullanıcı bulunamadı, giriş sayfasına yönlendiriliyor")
+      router.replace("/sign-in")
     }
-  }, [user, isAuthLoading, router])
+  }, [user, isAuthLoading, error, router])
 
   if (isAuthLoading || isLoading) {
     return (
@@ -79,6 +83,15 @@ export default function DashboardPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-24">
         <div className="text-red-500">{authError || error}</div>
+        <Button 
+          className="mt-4" 
+          onClick={() => {
+            // Ana sayfaya yönlendir ve sayfayı yenile
+            window.location.href = "/"
+          }}
+        >
+          Yeniden Dene
+        </Button>
       </div>
     )
   }

@@ -22,36 +22,76 @@ interface UseAuthReturn {
   user: Kullanici | null
   isLoading: boolean
   error: string | null
+  refreshUser: () => Promise<void>
 }
 
 export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<Kullanici | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastRefresh, setLastRefresh] = useState<number>(Date.now())
+
+  const loadUser = async () => {
+    try {
+      console.log("Kullanıcı bilgileri yükleniyor...")
+      setIsLoading(true)
+      setError(null)
+      
+      const user = await getCurrentUser()
+      
+      if (user) {
+        console.log("Kullanıcı yüklendi:", user.email, "ID:", user.id)
+        setUser(user)
+      } else {
+        console.error("Kullanıcı bulunamadı veya oturum açılmamış")
+        setUser(null)
+        
+        // Eğer daha önce kullanıcı varsa, tutarsızlık olduğunu bildirelim
+        if (user) {
+          console.error("Tutarsız kullanıcı durumu: Önceki kullanıcı vardı, şimdi bulunamadı")
+          setError("Oturum bilgilerinde tutarsızlık tespit edildi")
+        } else {
+          setError("Oturum açmış kullanıcı bulunamadı")
+        }
+      }
+    } catch (error) {
+      console.error("Kullanıcı bilgileri yüklenirken hata oluştu:", error)
+      setError("Kullanıcı bilgileri yüklenirken bir hata oluştu")
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+      setLastRefresh(Date.now())
+    }
+  }
 
   useEffect(() => {
     let isMounted = true
 
-    async function loadUser() {
+    const initAuth = async () => {
       try {
-        const user = await getCurrentUser()
-        if (isMounted) {
-          setUser(user)
-          setIsLoading(false)
-        }
+        await loadUser()
       } catch (error) {
         if (isMounted) {
-          console.error("Kullanıcı bilgileri yüklenirken hata oluştu:", error)
-          setError("Kullanıcı bilgileri yüklenirken bir hata oluştu")
+          console.error("Auth init hatası:", error)
+          setError("Kimlik doğrulama başlatılamadı")
           setIsLoading(false)
         }
       }
     }
 
-    loadUser()
+    initAuth()
+
+    // Her 5 dakikada bir otomatik yenileme
+    const intervalId = setInterval(() => {
+      if (isMounted) {
+        console.log("Kullanıcı bilgileri periyodik olarak yenileniyor...")
+        loadUser()
+      }
+    }, 5 * 60 * 1000) // 5 dakika
 
     return () => {
       isMounted = false
+      clearInterval(intervalId)
     }
   }, [])
 
@@ -59,5 +99,6 @@ export function useAuth(): UseAuthReturn {
     user,
     isLoading,
     error,
+    refreshUser: loadUser
   }
 } 

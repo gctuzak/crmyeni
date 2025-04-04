@@ -1,82 +1,103 @@
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
-import * as bcrypt from "bcrypt"
+import * as bcrypt from "bcryptjs"
 import { SignJWT } from "jose"
 import { NextResponse } from "next/server"
+import { AuthUser } from "@/lib/auth"
 
-// Auth modülündeki sabit değerlerle aynı olmalı
-const JWT_SECRET = process.env.JWT_SECRET || "gizli-anahtar-degistirin"
+// Diğer dosyalarda kullanılan JWT_SECRET ile aynı olmasına dikkat edelim
+const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-here"
 const secret = new TextEncoder().encode(JWT_SECRET)
 const COOKIE_NAME = "auth_token"
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json()
-    console.log("Giriş isteği alındı:", { email })
+    const body = await request.json()
+    const { email, password } = body
 
+    console.log(`Giriş denemesi: ${email}`)
+
+    // Find user
     const user = await prisma.kullanicilar.findUnique({
       where: { email },
       include: { rol: true },
     })
 
-    console.log("Kullanıcı sorgusu sonucu:", user ? "Bulundu" : "Bulunamadı")
-
     if (!user) {
-      return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 401 })
+      console.error(`Kullanıcı bulunamadı: ${email}`)
+      return NextResponse.json(
+        { message: "Geçersiz e-posta veya şifre" },
+        { status: 401 }
+      )
     }
 
-    const isValid = await bcrypt.compare(password, user.sifreHash)
-    console.log("Şifre kontrolü:", isValid ? "Başarılı" : "Başarısız")
+    console.log(`Kullanıcı bulundu: ${user.email} (ID: ${user.id})`)
 
-    if (!isValid) {
-      return NextResponse.json({ error: "Hatalı şifre" }, { status: 401 })
+    // Check password
+    const passwordMatch = await bcrypt.compare(password, user.sifreHash)
+
+    if (!passwordMatch) {
+      console.error(`Şifre eşleşmedi: ${email}`)
+      return NextResponse.json(
+        { message: "Geçersiz e-posta veya şifre" },
+        { status: 401 }
+      )
     }
 
-    // Create JWT token
-    const token = await new SignJWT({ 
+    console.log(`Şifre doğrulandı: ${email}`)
+
+    // Create session data
+    const session: AuthUser = {
       id: user.id,
       email: user.email,
       ad: user.ad,
       soyad: user.soyad,
-      rolId: user.rolId 
-    })
+      rolId: user.rolId,
+    }
+
+    console.log("Oluşturulacak token içeriği:", JSON.stringify(session))
+
+    // Create token
+    const token = await new SignJWT(session)
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("24h")
+      .setExpirationTime("1d")
       .sign(secret)
 
-    console.log("JWT token oluşturuldu")
+    console.log(`JWT token oluşturuldu: ${email}`)
+    console.log(`Token içeriği:`, session)
 
-    // Create response
-    const response = NextResponse.json({ 
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        ad: user.ad,
-        soyad: user.soyad,
-        rolId: user.rolId,
-        rol: user.rol
-      }
-    })
-
-    // Set cookie in response
-    response.cookies.set(COOKIE_NAME, token, {
+    // Set cookie
+    const cookieStore = cookies()
+    cookieStore.set({
+      name: COOKIE_NAME,
+      value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 // 1 day
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 86400, // 1 gün
     })
 
-    console.log("Cookie ayarlandı")
-    console.log("Başarılı yanıt gönderiliyor")
-    
-    return response
-  } catch (error) {
-    console.error("Giriş yapılırken hata oluştu:", error)
+    console.log(`Cookie ayarlandı: ${email}`)
+
     return NextResponse.json(
-      { error: "Giriş yapılırken bir hata oluştu" },
+      { 
+        message: "Giriş başarılı", 
+        user: {
+          id: user.id,
+          email: user.email,
+          ad: user.ad,
+          soyad: user.soyad,
+          rolId: user.rolId,
+          rol: user.rol
+        } 
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error("Giriş hatası:", error)
+    return NextResponse.json(
+      { message: "Bir hata oluştu" },
       { status: 500 }
     )
   }

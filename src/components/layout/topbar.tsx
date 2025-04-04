@@ -71,21 +71,9 @@ export function Topbar() {
     <div className="h-16 fixed top-0 left-64 right-0 bg-white dark:bg-gray-800 border-b z-50">
       <div className="h-full px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {logo ? (
-            <div className="h-8 w-auto relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logo}
-                alt="Logo"
-                className="h-full w-auto object-contain"
-              />
-            </div>
-          ) : (
-            <h1 className="text-2xl font-semibold">CRM</h1>
-          )}
-          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
           <h2 className="text-lg font-medium">
-            {pageTitles[pathname] || "CRM"}
+            <span className="font-semibold">CRM</span>
+            {pageTitles[pathname] ? ` ${pageTitles[pathname]}` : ""}
           </h2>
         </div>
 

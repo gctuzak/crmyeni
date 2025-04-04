@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
+import { verifyJwtToken } from "./lib/auth"
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-secret"
+// JWT_SECRET'ı diğer dosyalarla tutarlı olacak şekilde tanımlayalım
+const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-here"
 const secret = new TextEncoder().encode(JWT_SECRET)
 
 // NextResponse'un serializer'ını Decimal objelerini düzgün serileştirmek için override edelim
@@ -45,37 +47,49 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check auth token
+  // Token kontrolü ve doğrulama
   const token = request.cookies.get("auth_token")?.value
-  console.log("Cookie kontrolü:", token ? "Token bulundu" : "Token bulunamadı")
   
-  if (!token) {
-    console.log("Token bulunamadı, giriş sayfasına yönlendiriliyor")
-    return NextResponse.redirect(new URL("/sign-in", request.url))
-  }
-
-  try {
-    // Verify token
-    const { payload } = await jwtVerify(token, secret)
-    console.log("Token doğrulandı:", payload)
-
-    // Admin only routes
-    const adminRoutes = ["/kullanicilar", "/kullanicilar/yonetim"]
-    if (adminRoutes.some(route => request.nextUrl.pathname.startsWith(route))) {
-      // Rol ID'si 1 veya 2 olan kullanıcılar erişebilir
-      if (payload.rolId !== 1 && payload.rolId !== 2) {
-        console.log("Yetkisiz erişim, ana sayfaya yönlendiriliyor")
+  if (token) {
+    try {
+      console.log("Cookie kontrolü: Token bulundu")
+      const decoded = await verifyJwtToken(token)
+      console.log("Token doğrulandı:", decoded)
+      
+      // Eğer /sign-in sayfasına gidiliyorsa ve kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
+      if (request.nextUrl.pathname === "/sign-in") {
+        console.log("Kullanıcı giriş yapmış ve sign-in sayfasını açmaya çalışıyor, ana sayfaya yönlendiriliyor")
         return NextResponse.redirect(new URL("/", request.url))
       }
+      
+      // Admin only routes
+      const adminRoutes = ["/kullanicilar", "/kullanicilar/yonetim"]
+      if (adminRoutes.some(route => request.nextUrl.pathname.startsWith(route))) {
+        // Rol ID'si 1 veya 2 olan kullanıcılar erişebilir
+        if (decoded.rolId !== 1 && decoded.rolId !== 2) {
+          console.log("Yetkisiz erişim, ana sayfaya yönlendiriliyor")
+          return NextResponse.redirect(new URL("/", request.url))
+        }
+      }
+      
+      console.log("Erişim izni verildi")
+      return NextResponse.next()
+    } catch (error) {
+      console.error("Token doğrulaması başarısız:", error)
+      
+      // Token geçersizse çerezi temizle
+      const response = NextResponse.redirect(new URL("/sign-in", request.url))
+      response.cookies.delete("auth_token")
+      console.log("Geçersiz token temizlendi")
+      return response
     }
-
-    console.log("Erişim izni verildi")
-    return NextResponse.next()
-  } catch (error) {
-    // Token is invalid
-    console.error("Token geçersiz:", error)
-    return NextResponse.redirect(new URL("/sign-in", request.url))
   }
+
+  // Token bulunamadı, giriş sayfasına yönlendiriliyor
+  console.log("Token bulunamadı, giriş sayfasına yönlendiriliyor")
+  const response = NextResponse.redirect(new URL("/sign-in", request.url))
+  response.cookies.delete("auth_token")
+  return response
 }
 
 export const config = {
@@ -87,6 +101,12 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    {
+      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
   ],
 } 

@@ -42,7 +42,7 @@
 
     ### Methodology
     1. **System 2 Thinking**: Approach the problem with analytical rigor. Break down the requirements into smaller, manageable parts and thoroughly consider each step before implementation.
-    2. **Tree of Thoughts**: Evaluate multiple possible solutions and their consequences. Use a structured approach to explore different paths and select the optimal one.
+    2. **Tree of Thoughts**: Evaluate multaiple possible solutions and their consequences. Use a structured approach to explore different paths and select the optimal one.
     3. **Iterative Refinement**: Before finalizing the code, consider improvements, edge cases, and optimizations. Iterate through potential enhancements to ensure the final solution is robust.
 
     **Process**:
