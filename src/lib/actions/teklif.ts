@@ -8,11 +8,14 @@ import { TeklifForm } from "../validations/teklif"
 import { serializable } from "@/lib/utils"
 
 // Teklif numarası oluşturma fonksiyonu
-export async function generateTeklifNo(musteriId: number) {
+export async function generateTeklifNo(musteriId: number | string) {
   try {
+    // String olarak gelen musteriId değerini number'a dönüştür
+    const musteriIdNumber = typeof musteriId === 'string' ? parseInt(musteriId, 10) : musteriId
+    
     // Müşterinin son teklifini bul
     const sonTeklif = await prisma.teklifler.findFirst({
-      where: { musteriId },
+      where: { musteriId: musteriIdNumber },
       orderBy: { olusturmaTarihi: "desc" },
     })
 

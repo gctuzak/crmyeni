@@ -92,11 +92,12 @@ export function TeklifForm({ musteriler = [] }: Props) {
   const [urunler, setUrunler] = useState<ApiUrun[]>([])
   const [hizmetler, setHizmetler] = useState<ApiHizmet[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [defaultTeklifNo, setDefaultTeklifNo] = useState("")
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      teklifNo: "",
+      teklifNo: defaultTeklifNo,
       baslik: "",
       musteriId: 0,
       aciklama: "",
@@ -106,6 +107,7 @@ export function TeklifForm({ musteriler = [] }: Props) {
       notlar: "",
       teklifKalemleri: [],
     },
+    mode: "onChange"
   })
 
   // Teklif kalemlerini izle
@@ -143,19 +145,26 @@ export function TeklifForm({ musteriler = [] }: Props) {
 
   // Müşteri seçildiğinde teklif numarası oluştur
   useEffect(() => {
-    async function loadTeklifNo() {
-      const musteriId = form.getValues("musteriId")
-      if (musteriId) {
-        try {
-          const teklifNo = await generateTeklifNo(musteriId)
-          form.setValue("teklifNo", teklifNo)
-        } catch (error) {
+    const musteriId = form.getValues("musteriId")
+    if (musteriId && musteriId > 0) {
+      generateTeklifNo(musteriId)
+        .then(teklifNo => {
+          setDefaultTeklifNo(teklifNo)
+          form.setValue("teklifNo", teklifNo, { shouldValidate: true })
+        })
+        .catch(error => {
+          console.error("Teklif no oluşturma hatası:", error)
           toast.error("Teklif numarası oluşturulurken bir hata oluştu")
-        }
-      }
+        })
     }
-    loadTeklifNo()
-  }, [form.watch("musteriId")])
+  }, [form, form.watch("musteriId")])
+
+  // defaultTeklifNo değiştiğinde form değerini güncelle
+  useEffect(() => {
+    if (defaultTeklifNo) {
+      form.setValue("teklifNo", defaultTeklifNo)
+    }
+  }, [defaultTeklifNo, form])
 
   const handleAddKalem = (tip: "URUN" | "HIZMET") => {
     const yeniKalem: TeklifKalemi = {
@@ -265,8 +274,11 @@ export function TeklifForm({ musteriler = [] }: Props) {
               <FormItem>
                 <FormLabel>Teklif No</FormLabel>
                 <FormControl>
-                  <Input placeholder="TKL-2024-001" {...field} />
+                  <Input {...field} placeholder="TKL-2024-001" />
                 </FormControl>
+                <FormDescription>
+                  Otomatik oluşturulur, değiştirebilirsiniz.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
