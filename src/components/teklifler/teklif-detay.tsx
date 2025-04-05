@@ -103,22 +103,26 @@ export function TeklifDetay({ teklif }: TeklifDetayProps) {
       {isEditing ? (
         <TeklifForm
           initialData={{
+            id: teklif.id,
             musteriId: teklif.musteriId,
+            teklifNo: teklif.teklifNo,
             baslik: teklif.baslik,
             aciklama: teklif.aciklama || "",
             paraBirimi: teklif.paraBirimi,
+            durum: teklif.durum,
             sonGecerlilikTarihi: format(new Date(teklif.sonGecerlilikTarihi), "yyyy-MM-dd'T'HH:mm"),
-            kullaniciId: teklif.kullaniciId,
             notlar: teklif.notlar || "",
             teklifKalemleri: teklif.teklifKalemleri.map(kalem => ({
-              urunAdi: kalem.urunAdi,
+              kalemTipi: kalem.kalemTipi as "URUN" | "HIZMET",
+              urunId: kalem.kalemTipi === "URUN" ? kalem.urunId : null,
+              hizmetId: kalem.kalemTipi === "HIZMET" ? kalem.hizmetId : null,
               miktar: kalem.miktar,
               birim: kalem.birim,
               birimFiyat: typeof kalem.birimFiyat === 'number' ? kalem.birimFiyat : Number(kalem.birimFiyat),
               kdvOrani: kalem.kdvOrani,
-              aciklama: kalem.aciklama || "",
+              aciklama: kalem.aciklama || ""
             })),
-            id: teklif.id,
+            kullaniciId: teklif.kullaniciId,
           }}
         />
       ) : (

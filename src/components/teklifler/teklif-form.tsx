@@ -29,7 +29,7 @@ import { getTeklifKalemUrunleri, getTeklifKalemHizmetleri } from "@/lib/actions/
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trash } from "lucide-react"
-import { createTeklif, generateTeklifNo } from "@/lib/actions/teklif"
+import { createTeklif, generateTeklifNo, updateTeklif } from "@/lib/actions/teklif"
 import { ApiUrun, ApiHizmet, TeklifKalemi, CreateTeklifInput } from "@/lib/types"
 import { decimalToNumber, formatTeklifKalemiForApi } from "@/lib/utils"
 
@@ -85,27 +85,41 @@ type Props = {
     ad?: string | null
     soyad?: string | null
   }[]
+  initialData?: {
+    id: number
+    musteriId: number
+    teklifNo?: string
+    baslik: string
+    aciklama: string
+    paraBirimi: string
+    durum?: string
+    sonGecerlilikTarihi: string
+    notlar: string
+    teklifKalemleri: any[]
+    kullaniciId?: number
+  }
 }
 
-export function TeklifForm({ musteriler = [] }: Props) {
+export function TeklifForm({ musteriler = [], initialData }: Props) {
   const router = useRouter()
   const [urunler, setUrunler] = useState<ApiUrun[]>([])
   const [hizmetler, setHizmetler] = useState<ApiHizmet[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [defaultTeklifNo, setDefaultTeklifNo] = useState("")
+  const [defaultTeklifNo, setDefaultTeklifNo] = useState(initialData?.teklifNo || "")
+  const isEditMode = !!initialData
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      teklifNo: defaultTeklifNo,
-      baslik: "",
-      musteriId: 0,
-      aciklama: "",
-      paraBirimi: "TRY",
-      durum: "HAZIRLANIYOR",
-      sonGecerlilikTarihi: "",
-      notlar: "",
-      teklifKalemleri: [],
+      teklifNo: initialData?.teklifNo || defaultTeklifNo,
+      baslik: initialData?.baslik || "",
+      musteriId: initialData?.musteriId || 0,
+      aciklama: initialData?.aciklama || "",
+      paraBirimi: initialData?.paraBirimi || "TRY",
+      durum: initialData?.durum || "HAZIRLANIYOR",
+      sonGecerlilikTarihi: initialData?.sonGecerlilikTarihi || "",
+      notlar: initialData?.notlar || "",
+      teklifKalemleri: initialData?.teklifKalemleri || [],
     },
     mode: "onChange"
   })
@@ -242,12 +256,23 @@ export function TeklifForm({ musteriler = [] }: Props) {
         teklifKalemleri: values.teklifKalemleri.map(kalem => formatTeklifKalemiForApi(kalem))
       }
 
-      const { error } = await createTeklif(apiValues)
-      if (error) {
-        toast.error(error)
-        return
+      let result;
+      if (isEditMode && initialData) {
+        result = await updateTeklif(initialData.id, apiValues)
+        if (result.error) {
+          toast.error(result.error)
+          return
+        }
+        toast.success("Teklif başarıyla güncellendi.")
+      } else {
+        result = await createTeklif(apiValues)
+        if (result.error) {
+          toast.error(result.error)
+          return
+        }
+        toast.success("Teklif başarıyla oluşturuldu.")
       }
-      toast.success("Teklif başarıyla oluşturuldu.")
+      
       router.push("/teklifler")
       router.refresh()
     } catch (error) {
@@ -544,7 +569,7 @@ export function TeklifForm({ musteriler = [] }: Props) {
           >
             İptal
           </Button>
-          <Button type="submit">Oluştur</Button>
+          <Button type="submit">{isEditMode ? "Güncelle" : "Oluştur"}</Button>
         </div>
       </form>
     </Form>
