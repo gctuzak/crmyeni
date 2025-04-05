@@ -47,6 +47,8 @@ const formSchema = z.object({
   paraBirimi: z.string().min(1, {
     message: "Para birimi zorunludur.",
   }),
+  kurDegeri: z.coerce.number().min(0).nullable().optional(),
+  kurTarihi: z.string().nullable().optional(),
   durum: z.string().min(1, {
     message: "Durum seçimi zorunludur.",
   }),
@@ -92,6 +94,8 @@ type Props = {
     baslik: string
     aciklama: string
     paraBirimi: string
+    kurDegeri?: number | null
+    kurTarihi?: string | null
     durum?: string
     sonGecerlilikTarihi: string
     notlar: string
@@ -99,6 +103,14 @@ type Props = {
     kullaniciId?: number
   }
 }
+
+// Para birimleri
+const paraBirimleri = [
+  "TRY",
+  "USD",
+  "EUR",
+  "GBP"
+]
 
 export function TeklifForm({ musteriler = [], initialData }: Props) {
   const router = useRouter()
@@ -116,6 +128,8 @@ export function TeklifForm({ musteriler = [], initialData }: Props) {
       musteriId: initialData?.musteriId || 0,
       aciklama: initialData?.aciklama || "",
       paraBirimi: initialData?.paraBirimi || "TRY",
+      kurDegeri: initialData?.kurDegeri || null,
+      kurTarihi: initialData?.kurTarihi || null,
       durum: initialData?.durum || "HAZIRLANIYOR",
       sonGecerlilikTarihi: initialData?.sonGecerlilikTarihi || "",
       notlar: initialData?.notlar || "",
@@ -179,6 +193,56 @@ export function TeklifForm({ musteriler = [], initialData }: Props) {
       form.setValue("teklifNo", defaultTeklifNo)
     }
   }, [defaultTeklifNo, form])
+
+  // initialData değiştiğinde form değerlerini ayarla
+  useEffect(() => {
+    if (initialData) {
+      console.log("Teklif Düzenleme - initialData:", initialData);
+      
+      // Form değerlerini teker teker ayarla
+      form.setValue("teklifNo", initialData.teklifNo || "");
+      console.log("TeklifNo ayarlandı:", initialData.teklifNo);
+      
+      form.setValue("baslik", initialData.baslik || "");
+      console.log("Başlık ayarlandı:", initialData.baslik);
+      
+      form.setValue("musteriId", initialData.musteriId);
+      console.log("MüşteriID ayarlandı:", initialData.musteriId);
+      
+      form.setValue("aciklama", initialData.aciklama || "");
+      form.setValue("paraBirimi", initialData.paraBirimi || "TRY");
+      form.setValue("durum", initialData.durum || "HAZIRLANIYOR");
+      
+      if (initialData.sonGecerlilikTarihi) {
+        console.log("Orijinal son geçerlilik tarihi:", initialData.sonGecerlilikTarihi);
+        form.setValue("sonGecerlilikTarihi", initialData.sonGecerlilikTarihi);
+        console.log("Ayarlanan son geçerlilik tarihi:", form.getValues("sonGecerlilikTarihi"));
+      }
+      
+      form.setValue("notlar", initialData.notlar || "");
+      
+      if (initialData.teklifKalemleri && initialData.teklifKalemleri.length > 0) {
+        form.setValue("teklifKalemleri", initialData.teklifKalemleri);
+        console.log("Teklif kalemleri ayarlandı:", initialData.teklifKalemleri.length);
+      }
+      
+      if (initialData.kurDegeri !== undefined && initialData.kurDegeri !== null) {
+        form.setValue("kurDegeri", initialData.kurDegeri);
+      }
+      
+      if (initialData.kurTarihi) {
+        form.setValue("kurTarihi", initialData.kurTarihi);
+      }
+    }
+  }, [initialData, form]);
+
+  // Müşteri bilgilerini konsolda göster (Debug için)
+  useEffect(() => {
+    if (musteriler && musteriler.length > 0) {
+      console.log("Mevcut müşteriler:", musteriler);
+      console.log("Form'daki müşteri ID:", form.getValues("musteriId"));
+    }
+  }, [musteriler, form]);
 
   const handleAddKalem = (tip: "URUN" | "HIZMET") => {
     const yeniKalem: TeklifKalemi = {
@@ -250,33 +314,67 @@ export function TeklifForm({ musteriler = [], initialData }: Props) {
 
   async function onSubmit(values: FormValues) {
     try {
+      setIsLoading(true);
+      console.log("Teklif form değerleri:", values);
+      
+      // Müşteri seçildiğinden emin olalım
+      if (!values.musteriId) {
+        toast.error("Lütfen bir müşteri seçin");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Seçilen müşteri ID:", values.musteriId);
+      
       // API için verileri dönüştür
       const apiValues: CreateTeklifInput = {
         ...values,
+        musteriId: Number(values.musteriId), // Müşteri ID'sini number olarak ekleyelim
         teklifKalemleri: values.teklifKalemleri.map(kalem => formatTeklifKalemiForApi(kalem))
       }
 
       let result;
       if (isEditMode && initialData) {
+        console.log("Teklif güncelleniyor, ID:", initialData.id);
+        console.log("Gönderilecek veriler:", apiValues);
+        
         result = await updateTeklif(initialData.id, apiValues)
+        console.log("Teklif güncelleme sonucu:", result);
+        
         if (result.error) {
           toast.error(result.error)
+          setIsLoading(false);
           return
         }
         toast.success("Teklif başarıyla güncellendi.")
+        // Yönlendirmeden önce biraz bekleyelim
+        setTimeout(() => {
+          router.push("/teklifler");
+          router.refresh();
+        }, 500);
       } else {
+        console.log("Yeni teklif oluşturuluyor");
+        console.log("Gönderilecek veriler:", apiValues);
+        
         result = await createTeklif(apiValues)
+        console.log("Teklif oluşturma sonucu:", result);
+        
         if (result.error) {
           toast.error(result.error)
+          setIsLoading(false);
           return
         }
         toast.success("Teklif başarıyla oluşturuldu.")
+        // Yönlendirmeden önce biraz bekleyelim
+        setTimeout(() => {
+          router.push("/teklifler");
+          router.refresh();
+        }, 500);
       }
-      
-      router.push("/teklifler")
-      router.refresh()
     } catch (error) {
+      console.error("Teklif form gönderim hatası:", error);
       toast.error("Bir hata oluştu.")
+      setIsLoading(false);
     }
   }
 
@@ -327,18 +425,26 @@ export function TeklifForm({ musteriler = [], initialData }: Props) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Müşteri</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value.toString()}>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value ? field.value.toString() : undefined}
+                  defaultValue={field.value ? field.value.toString() : undefined}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Müşteri seçin" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {musteriler?.map((musteri) => (
-                      <SelectItem key={musteri.id} value={musteri.id.toString()}>
-                        {musteri.firmaAdi || `${musteri.ad} ${musteri.soyad}`}
-                      </SelectItem>
-                    )) || <SelectItem value="0">Müşteri bulunamadı</SelectItem>}
+                    {musteriler && musteriler.length > 0 ? (
+                      musteriler.map((musteri) => (
+                        <SelectItem key={musteri.id} value={musteri.id.toString()}>
+                          {musteri.firmaAdi || `${musteri.ad || ''} ${musteri.soyad || ''}`}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="0">Müşteri bulunamadı</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -358,11 +464,51 @@ export function TeklifForm({ musteriler = [], initialData }: Props) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="TRY">TRY</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
+                    {paraBirimleri.map((paraBirimi) => (
+                      <SelectItem key={paraBirimi} value={paraBirimi}>
+                        {paraBirimi}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="kurDegeri"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Kur Değeri</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.0001" 
+                    placeholder="Kur değeri"
+                    value={field.value === null ? '' : field.value}
+                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Yabancı para birimi ile teklif oluşturuyorsanız kur değerini giriniz.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="kurTarihi"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Kur Tarihi</FormLabel>
+                <FormControl>
+                  <Input type="date" 
+                    value={field.value || ''} 
+                    onChange={(e) => field.onChange(e.target.value || null)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -397,8 +543,19 @@ export function TeklifForm({ musteriler = [], initialData }: Props) {
               <FormItem>
                 <FormLabel>Son Geçerlilik Tarihi</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input 
+                    type="date" 
+                    placeholder="YYYY-MM-DD"
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      console.log("Tarih değişti:", e.target.value);
+                      field.onChange(e.target.value);
+                    }}
+                  />
                 </FormControl>
+                <FormDescription>
+                  Teklif son geçerlilik tarihi (YYYY-MM-DD formatında)
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

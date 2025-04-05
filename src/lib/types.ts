@@ -8,6 +8,9 @@ export interface ApiUrun {
   grupId: number
   birim: string
   birimFiyat: Decimal | number | { toString: () => string }
+  paraBirimi: string
+  kurBazliFiyat?: Decimal | number | { toString: () => string } | null
+  kurParaBirimi?: string | null
   kdvOrani: number
   aciklama: string | null
   aktif: boolean
@@ -19,8 +22,9 @@ export interface ApiUrun {
 }
 
 // Form için kullanılan ürün tipini tanımlıyoruz
-export interface Urun extends Omit<ApiUrun, 'birimFiyat'> {
+export interface Urun extends Omit<ApiUrun, 'birimFiyat' | 'kurBazliFiyat'> {
   birimFiyat: number
+  kurBazliFiyat?: number | null
 }
 
 // Servis tipinden dönen hizmet tipini tanımlıyoruz
@@ -31,6 +35,9 @@ export interface ApiHizmet {
   grupId: number
   birim: string
   birimFiyat: Decimal | number | { toString: () => string }
+  paraBirimi: string
+  kurBazliFiyat?: Decimal | number | { toString: () => string } | null
+  kurParaBirimi?: string | null
   kdvOrani: number
   aciklama: string | null
   aktif: boolean
@@ -42,8 +49,9 @@ export interface ApiHizmet {
 }
 
 // Form için kullanılan hizmet tipini tanımlıyoruz
-export interface Hizmet extends Omit<ApiHizmet, 'birimFiyat'> {
+export interface Hizmet extends Omit<ApiHizmet, 'birimFiyat' | 'kurBazliFiyat'> {
   birimFiyat: number
+  kurBazliFiyat?: number | null
 }
 
 export interface UrunHizmetGrubu {
@@ -87,6 +95,8 @@ export interface CreateTeklifInput {
   musteriId: number
   aciklama?: string | null
   paraBirimi: string
+  kurDegeri?: number | null
+  kurTarihi?: string | null
   durum: string
   sonGecerlilikTarihi: string
   notlar?: string | null

@@ -1,47 +1,42 @@
-// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model Ayarlar {
-  id        Int      @id @default(autoincrement()) @map("AyarID")
-  anahtar   String   @unique @map("Anahtar") @db.VarChar(100)
-  deger     String   @map("Deger") @db.Text
-  aciklama  String?  @map("Aciklama") @db.Text
+  id       Int     @id @default(autoincrement()) @map("AyarID")
+  anahtar  String  @unique @map("Anahtar") @db.VarChar(100)
+  deger    String  @map("Deger")
+  aciklama String? @map("Aciklama")
 
   @@map("Ayarlar")
 }
 
 model Musteriler {
   id            Int             @id @default(autoincrement()) @map("MusteriID")
-  musteriTipi   String         @map("MusteriTipi") @db.VarChar(50) // "BIREYSEL" veya "KURUMSAL"
-  // Bireysel müşteri alanları
-  ad            String?        @map("Ad") @db.VarChar(100)
-  soyad         String?        @map("Soyad") @db.VarChar(100)
-  tcKimlik      String?        @map("TCKimlik") @db.VarChar(11)
-  // Kurumsal müşteri alanları
-  firmaAdi      String?        @map("FirmaAdi") @db.VarChar(200)
-  vergiDairesi  String?        @map("VergiDairesi") @db.VarChar(100)
-  vergiNo       String?        @map("VergiNo") @db.VarChar(20)
-  // Ortak alanlar
-  telefon       String?        @map("Telefon") @db.VarChar(20)
-  email         String?        @map("Email") @db.VarChar(100)
-  adres         String?        @map("Adres") @db.Text
-  kayitTarihi   DateTime       @default(now()) @map("KayitTarihi")
-  // İlişkiler
-  kullaniciId   Int           @map("KullaniciID") // Kaydı oluşturan kullanıcı
-  kullanici     Kullanicilar  @relation("KaydedenKullanici", fields: [kullaniciId], references: [id])
-  temsilciId    Int?          @map("TemsilciID") // Müşteri temsilcisi
-  temsilci      Kullanicilar? @relation("MusteriTemsilcisi", fields: [temsilciId], references: [id])
-  ilgiliKisiler IlgiliKisiler[]
-  teklifler     Teklifler[]
+  musteriTipi   String          @map("MusteriTipi") @db.VarChar(50)
+  ad            String?         @map("Ad") @db.VarChar(100)
+  soyad         String?         @map("Soyad") @db.VarChar(100)
+  vergiNo       String?         @map("VergiNo") @db.VarChar(20)
+  telefon       String?         @map("Telefon") @db.VarChar(20)
+  email         String?         @map("Email") @db.VarChar(100)
+  adres         String?         @map("Adres")
+  kayitTarihi   DateTime        @default(now()) @map("KayitTarihi")
+  kullaniciId   Int             @map("KullaniciID")
+  firmaAdi      String?         @map("FirmaAdi") @db.VarChar(200)
+  tcKimlik      String?         @map("TCKimlik") @db.VarChar(11)
+  temsilciId    Int?            @map("TemsilciID")
+  vergiDairesi  String?         @map("VergiDairesi") @db.VarChar(100)
   etkinlikler   Etkinlikler[]
   firsatlar     Firsatlar[]
+  ilgiliKisiler IlgiliKisiler[]
+  kullanici     Kullanicilar    @relation("KaydedenKullanici", fields: [kullaniciId], references: [id])
+  temsilci      Kullanicilar?   @relation("MusteriTemsilcisi", fields: [temsilciId], references: [id])
+  teklifler     Teklifler[]
 
   @@index([kullaniciId])
   @@index([temsilciId])
@@ -49,15 +44,15 @@ model Musteriler {
 }
 
 model IlgiliKisiler {
-  id          Int       @id @default(autoincrement()) @map("IlgiliKisiID")
-  musteriId   Int       @map("MusteriID")
-  ad          String    @map("Ad") @db.VarChar(100)
-  soyad       String?   @map("Soyad") @db.VarChar(100)
-  unvan       String?   @map("Unvan") @db.VarChar(100)
-  telefon     String?   @map("Telefon") @db.VarChar(20)
-  email       String?   @map("Email") @db.VarChar(100)
-  musteri     Musteriler @relation(fields: [musteriId], references: [id])
+  id          Int           @id @default(autoincrement()) @map("IlgiliKisiID")
+  musteriId   Int           @map("MusteriID")
+  ad          String        @map("Ad") @db.VarChar(100)
+  soyad       String?       @map("Soyad") @db.VarChar(100)
+  unvan       String?       @map("Unvan") @db.VarChar(100)
+  telefon     String?       @map("Telefon") @db.VarChar(20)
+  email       String?       @map("Email") @db.VarChar(100)
   etkinlikler Etkinlikler[] @relation("EtkinlikIlgiliKisi")
+  musteri     Musteriler    @relation(fields: [musteriId], references: [id])
 
   @@map("IlgiliKisiler")
 }
@@ -67,7 +62,7 @@ model Teklifler {
   musteriId           Int               @map("MusteriID")
   teklifNo            String            @unique @map("TeklifNo") @db.VarChar(50)
   baslik              String            @map("Baslik") @db.VarChar(200)
-  aciklama            String?           @map("Aciklama") @db.Text
+  aciklama            String?           @map("Aciklama")
   toplamTutar         Decimal           @map("ToplamTutar") @db.Decimal(10, 2)
   paraBirimi          String            @map("ParaBirimi") @db.VarChar(10)
   durum               String            @map("Durum") @db.VarChar(50)
@@ -75,11 +70,13 @@ model Teklifler {
   sonGecerlilikTarihi DateTime          @map("SonGecerlilikTarihi")
   kullaniciId         Int               @map("KullaniciID")
   revizyon            Int               @default(1) @map("Revizyon")
-  notlar              String?           @map("Notlar") @db.Text
-  musteri             Musteriler        @relation(fields: [musteriId], references: [id], onDelete: Cascade)
-  kullanici           Kullanicilar      @relation(fields: [kullaniciId], references: [id])
-  teklifKalemleri     TeklifKalemleri[]
+  notlar              String?           @map("Notlar")
+  kurDegeri           Decimal?          @map("KurDegeri") @db.Decimal(10, 4)
+  kurTarihi           DateTime?         @map("KurTarihi")
   teklifDosyalari     TeklifDosyalari[]
+  teklifKalemleri     TeklifKalemleri[]
+  kullanici           Kullanicilar      @relation(fields: [kullaniciId], references: [id])
+  musteri             Musteriler        @relation(fields: [musteriId], references: [id], onDelete: Cascade)
 
   @@index([musteriId])
   @@index([kullaniciId])
@@ -87,19 +84,20 @@ model Teklifler {
 }
 
 model TeklifKalemleri {
-  id          Int       @id @default(autoincrement()) @map("KalemID")
-  teklifId    Int       @map("TeklifID")
-  urunId      Int?      @map("UrunID")
-  hizmetId    Int?      @map("HizmetID")
-  kalemTipi   String    @map("KalemTipi") @db.VarChar(20)
-  miktar      Int       @map("Miktar")
-  birim       String    @map("Birim") @db.VarChar(20)
-  birimFiyat  Decimal   @map("BirimFiyat") @db.Decimal(10, 2)
-  kdvOrani    Int       @map("KDVOrani")
-  aciklama    String?   @map("Aciklama") @db.Text
-  teklif      Teklifler @relation(fields: [teklifId], references: [id], onDelete: Cascade)
-  urun        Urunler?  @relation(fields: [urunId], references: [id])
-  hizmet      Hizmetler? @relation(fields: [hizmetId], references: [id])
+  id         Int        @id @default(autoincrement()) @map("KalemID")
+  teklifId   Int        @map("TeklifID")
+  miktar     Int        @map("Miktar")
+  birim      String     @map("Birim") @db.VarChar(20)
+  birimFiyat Decimal    @map("BirimFiyat") @db.Decimal(10, 2)
+  kdvOrani   Int        @map("KDVOrani")
+  aciklama   String?    @map("Aciklama")
+  hizmetId   Int?       @map("HizmetID")
+  kalemTipi  String     @map("KalemTipi") @db.VarChar(20)
+  urunId     Int?       @map("UrunID")
+  paraBirimi String     @default("TRY") @map("ParaBirimi") @db.VarChar(10)
+  hizmet     Hizmetler? @relation(fields: [hizmetId], references: [id])
+  teklif     Teklifler  @relation(fields: [teklifId], references: [id], onDelete: Cascade)
+  urun       Urunler?   @relation(fields: [urunId], references: [id])
 
   @@index([teklifId])
   @@index([urunId])
@@ -108,72 +106,45 @@ model TeklifKalemleri {
 }
 
 model Roller {
-  id          Int           @id @default(autoincrement()) @map("RolID")
-  rolAdi      String        @unique @map("RolAdi") @db.VarChar(100)
-  yetkiler    String?       @map("Yetkiler") @db.Text
+  id           Int            @id @default(autoincrement()) @map("RolID")
+  rolAdi       String         @unique @map("RolAdi") @db.VarChar(100)
+  yetkiler     String?        @map("Yetkiler")
   kullanicilar Kullanicilar[]
 
   @@map("Roller")
 }
 
 model Kullanicilar {
-  id              Int           @id @default(autoincrement()) @map("KullaniciID")
-  ad              String        @map("Ad") @db.VarChar(100)
-  soyad           String        @map("Soyad") @db.VarChar(100)
-  email           String        @unique @map("Email") @db.VarChar(100)
-  sifreHash       String        @map("SifreHash") @db.VarChar(255)
-  rolId           Int           @map("RolID")
-  rol             Roller        @relation(fields: [rolId], references: [id])
-  kayitliMusteriler Musteriler[] @relation("KaydedenKullanici")
-  temsilciMusteriler Musteriler[] @relation("MusteriTemsilcisi")
-  etkinlikler     Etkinlikler[]
-  teklifler       Teklifler[]
-  islemGecmisi    IslemGecmisi[]
+  id                 Int            @id @default(autoincrement()) @map("KullaniciID")
+  ad                 String         @map("Ad") @db.VarChar(100)
+  soyad              String         @map("Soyad") @db.VarChar(100)
+  email              String         @unique @map("Email") @db.VarChar(100)
+  sifreHash          String         @map("SifreHash") @db.VarChar(255)
+  rolId              Int            @map("RolID")
+  etkinlikler        Etkinlikler[]
+  islemGecmisi       IslemGecmisi[]
+  rol                Roller         @relation(fields: [rolId], references: [id])
+  kayitliMusteriler  Musteriler[]   @relation("KaydedenKullanici")
+  temsilciMusteriler Musteriler[]   @relation("MusteriTemsilcisi")
+  teklifler          Teklifler[]
 
   @@map("Kullanicilar")
 }
 
-enum EtkinlikTipi {
-  CARI_HESAP_BILGILERI     @map("Cari Hesap Bilgileri")
-  FATURA_KESILECEK         @map("Fatura Kesilecek")
-  GELEN_EPOSTA             @map("Gelen E-posta")
-  GIDEN_EPOSTA             @map("Giden E-posta")
-  IMALAT                   @map("İmalat")
-  ISEMRI_OLUSTURULACAK     @map("İşemri Oluşturulacak")
-  KESIF                    @map("Keşif")
-  MONTAJ                   @map("Montaj")
-  MUSTERI_ZIYARET          @map("Müşteri Ziyaret")
-  NUMUNE_GONDERIMI         @map("Numune Gönderimi")
-  PRIM_HAKEDISI           @map("Prim Hakedişi")
-  PROJE_CIZIM             @map("Proje Çizim")
-  PROJE_INCELEME          @map("Proje İnceleme")
-  SEVKIYAT                @map("Sevkiyat")
-  SIKAYET_ARIZA_SERVIS    @map("Şikayet/Arıza/Servis")
-  TAHSILAT_TAKIBI         @map("Tahsilat Takibi")
-  TEKLIF_DURUM_TAKIBI     @map("Teklif Durum Takibi")
-  TEKLIF_GONDERIM_ONAYI   @map("Teklif Gönderim Onayı")
-  TEKLIF_ONAY_TALEBI      @map("Teklif Onay Talebi")
-  TEKLIF_VERILECEK        @map("Teklif Verilecek")
-  TEKNIK_SERVIS           @map("Teknik Servis")
-  TELEFON_GORUSMESI       @map("Telefon Görüşmesi")
-  TOPLANTI                @map("Toplantı")
-  TOPLU_EPOSTA            @map("Toplu E-posta")
-}
-
 model Etkinlikler {
-  id              Int          @id @default(autoincrement()) @map("EtkinlikID")
-  musteriId       Int          @map("MusteriID")
-  ilgiliKisiId    Int?         @map("IlgiliKisiID")
-  etkinlikTipi    EtkinlikTipi @map("EtkinlikTipi")
-  baslangicTarihi DateTime     @map("BaslangicTarihi")
-  bitisTarihi     DateTime?    @map("BitisTarihi")
-  aciklama        String?      @map("Aciklama") @db.Text
-  durum           String       @map("Durum") @default("BEKLIYOR")
-  oncelik         String       @map("Oncelik") @default("NORMAL")
-  kullaniciId     Int          @map("KullaniciID")
-  musteri         Musteriler   @relation(fields: [musteriId], references: [id])
+  id              Int            @id @default(autoincrement()) @map("EtkinlikID")
+  musteriId       Int            @map("MusteriID")
+  baslangicTarihi DateTime       @map("BaslangicTarihi")
+  bitisTarihi     DateTime?      @map("BitisTarihi")
+  aciklama        String?        @map("Aciklama")
+  kullaniciId     Int            @map("KullaniciID")
+  durum           String         @default("BEKLIYOR") @map("Durum")
+  ilgiliKisiId    Int?           @map("IlgiliKisiID")
+  oncelik         String         @default("NORMAL") @map("Oncelik")
+  etkinlikTipi    EtkinlikTipi   @map("EtkinlikTipi")
   ilgiliKisi      IlgiliKisiler? @relation("EtkinlikIlgiliKisi", fields: [ilgiliKisiId], references: [id])
-  kullanici       Kullanicilar @relation(fields: [kullaniciId], references: [id])
+  kullanici       Kullanicilar   @relation(fields: [kullaniciId], references: [id])
+  musteri         Musteriler     @relation(fields: [musteriId], references: [id])
 
   @@index([musteriId])
   @@index([ilgiliKisiId])
@@ -182,23 +153,23 @@ model Etkinlikler {
 }
 
 model Asamalar {
-  id          Int         @id @default(autoincrement()) @map("AsamaID")
-  asamaAdi    String      @map("AsamaAdi") @db.VarChar(100)
-  sira        Int         @map("Sira")
-  firsatlar   Firsatlar[]
+  id        Int         @id @default(autoincrement()) @map("AsamaID")
+  asamaAdi  String      @map("AsamaAdi") @db.VarChar(100)
+  sira      Int         @map("Sira")
+  firsatlar Firsatlar[]
 
   @@map("Asamalar")
 }
 
 model Firsatlar {
-  id                  Int       @id @default(autoincrement()) @map("FirsatID")
-  musteriId           Int       @map("MusteriID")
-  baslik              String    @map("Baslik") @db.VarChar(200)
-  beklenenKapanisTarihi DateTime? @map("BeklenenKapanisTarihi")
-  asamaId             Int       @map("AsamaID")
-  olasilik            Decimal   @map("Olasilik") @db.Decimal(5,2)
-  musteri             Musteriler @relation(fields: [musteriId], references: [id])
-  asama               Asamalar   @relation(fields: [asamaId], references: [id])
+  id                    Int        @id @default(autoincrement()) @map("FirsatID")
+  musteriId             Int        @map("MusteriID")
+  baslik                String     @map("Baslik") @db.VarChar(200)
+  beklenenKapanisTarihi DateTime?  @map("BeklenenKapanisTarihi")
+  asamaId               Int        @map("AsamaID")
+  olasilik              Decimal    @map("Olasilik") @db.Decimal(5, 2)
+  asama                 Asamalar   @relation(fields: [asamaId], references: [id])
+  musteri               Musteriler @relation(fields: [musteriId], references: [id])
 
   @@map("Firsatlar")
 }
@@ -216,68 +187,101 @@ model TeklifDosyalari {
 }
 
 model IslemGecmisi {
-  id                Int           @id @default(autoincrement()) @map("LogID")
-  tabloAdi          String        @map("TabloAdi") @db.VarChar(100)
-  kayitId           Int           @map("KayitID")
-  degisiklikDetayi  String        @map("DegisiklikDetayi") @db.Text
-  tarih             DateTime      @default(now()) @map("Tarih")
-  kullaniciId       Int           @map("KullaniciID")
-  kullanici         Kullanicilar  @relation(fields: [kullaniciId], references: [id])
+  id               Int          @id @default(autoincrement()) @map("LogID")
+  tabloAdi         String       @map("TabloAdi") @db.VarChar(100)
+  kayitId          Int          @map("KayitID")
+  degisiklikDetayi String       @map("DegisiklikDetayi")
+  tarih            DateTime     @default(now()) @map("Tarih")
+  kullaniciId      Int          @map("KullaniciID")
+  kullanici        Kullanicilar @relation(fields: [kullaniciId], references: [id])
 
   @@map("IslemGecmisi")
 }
 
 model UrunHizmetGruplari {
-  id          Int       @id @default(autoincrement()) @map("GrupID")
-  grupTipi    String    @map("GrupTipi") @db.VarChar(20) // "URUN" veya "HIZMET"
-  grupKodu    String    @unique @map("GrupKodu") @db.VarChar(50)
-  grupAdi     String    @map("GrupAdi") @db.VarChar(200)
-  aciklama    String?   @map("Aciklama") @db.Text
-  aktif       Boolean   @default(true) @map("Aktif")
-  sira        Int       @default(0) @map("Sira")
-  ustGrupId   Int?      @map("UstGrupID")
-  ustGrup     UrunHizmetGruplari? @relation("UstAltGrup", fields: [ustGrupId], references: [id])
-  altGruplar  UrunHizmetGruplari[] @relation("UstAltGrup")
-  urunler     Urunler[]
-  hizmetler   Hizmetler[]
+  id         Int                  @id @default(autoincrement()) @map("GrupID")
+  grupTipi   String               @map("GrupTipi") @db.VarChar(20)
+  grupKodu   String               @unique @map("GrupKodu") @db.VarChar(50)
+  grupAdi    String               @map("GrupAdi") @db.VarChar(200)
+  aciklama   String?              @map("Aciklama")
+  aktif      Boolean              @default(true) @map("Aktif")
+  sira       Int                  @default(0) @map("Sira")
+  ustGrupId  Int?                 @map("UstGrupID")
+  hizmetler  Hizmetler[]
+  ustGrup    UrunHizmetGruplari?  @relation("UstAltGrup", fields: [ustGrupId], references: [id])
+  altGruplar UrunHizmetGruplari[] @relation("UstAltGrup")
+  urunler    Urunler[]
 
   @@map("UrunHizmetGruplari")
 }
 
 model Urunler {
-  id          Int       @id @default(autoincrement()) @map("UrunID")
-  urunKodu    String    @unique @map("UrunKodu") @db.VarChar(50)
-  urunAdi     String    @map("UrunAdi") @db.VarChar(200)
-  grupId      Int       @map("GrupID")
-  grup        UrunHizmetGruplari @relation(fields: [grupId], references: [id])
-  birim       String    @map("Birim") @db.VarChar(20)
-  birimFiyat  Decimal   @map("BirimFiyat") @db.Decimal(10, 2)
-  kdvOrani    Int       @map("KDVOrani")
-  aciklama    String?   @map("Aciklama") @db.Text
-  aktif       Boolean   @default(true) @map("Aktif")
-  olusturmaTarihi DateTime @default(now()) @map("OlusturmaTarihi")
-  guncellenmeTarihi DateTime @updatedAt @map("GuncellenmeTarihi")
-  teklifKalemleri TeklifKalemleri[]
+  id                Int                @id @default(autoincrement()) @map("UrunID")
+  urunKodu          String             @unique @map("UrunKodu") @db.VarChar(50)
+  urunAdi           String             @map("UrunAdi") @db.VarChar(200)
+  grupId            Int                @map("GrupID")
+  birim             String             @map("Birim") @db.VarChar(20)
+  birimFiyat        Decimal            @map("BirimFiyat") @db.Decimal(10, 2)
+  kdvOrani          Int                @map("KDVOrani")
+  aciklama          String?            @map("Aciklama")
+  aktif             Boolean            @default(true) @map("Aktif")
+  olusturmaTarihi   DateTime           @default(now()) @map("OlusturmaTarihi")
+  guncellenmeTarihi DateTime           @updatedAt @map("GuncellenmeTarihi")
+  kurBazliFiyat     Decimal?           @map("KurBazliFiyat") @db.Decimal(10, 2)
+  kurParaBirimi     String?            @map("KurParaBirimi") @db.VarChar(10)
+  paraBirimi        String             @default("TRY") @map("ParaBirimi") @db.VarChar(10)
+  teklifKalemleri   TeklifKalemleri[]
+  grup              UrunHizmetGruplari @relation(fields: [grupId], references: [id])
 
   @@index([grupId])
   @@map("Urunler")
 }
 
 model Hizmetler {
-  id          Int       @id @default(autoincrement()) @map("HizmetID")
-  hizmetKodu  String    @unique @map("HizmetKodu") @db.VarChar(50)
-  hizmetAdi   String    @map("HizmetAdi") @db.VarChar(200)
-  grupId      Int       @map("GrupID")
-  grup        UrunHizmetGruplari @relation(fields: [grupId], references: [id])
-  birim       String    @map("Birim") @db.VarChar(20)
-  birimFiyat  Decimal   @map("BirimFiyat") @db.Decimal(10, 2)
-  kdvOrani    Int       @map("KDVOrani")
-  aciklama    String?   @map("Aciklama") @db.Text
-  aktif       Boolean   @default(true) @map("Aktif")
-  olusturmaTarihi DateTime @default(now()) @map("OlusturmaTarihi")
-  guncellenmeTarihi DateTime @updatedAt @map("GuncellenmeTarihi")
-  teklifKalemleri TeklifKalemleri[]
+  id                Int                @id @default(autoincrement()) @map("HizmetID")
+  hizmetKodu        String             @unique @map("HizmetKodu") @db.VarChar(50)
+  hizmetAdi         String             @map("HizmetAdi") @db.VarChar(200)
+  grupId            Int                @map("GrupID")
+  birim             String             @map("Birim") @db.VarChar(20)
+  birimFiyat        Decimal            @map("BirimFiyat") @db.Decimal(10, 2)
+  kdvOrani          Int                @map("KDVOrani")
+  aciklama          String?            @map("Aciklama")
+  aktif             Boolean            @default(true) @map("Aktif")
+  olusturmaTarihi   DateTime           @default(now()) @map("OlusturmaTarihi")
+  guncellenmeTarihi DateTime           @updatedAt @map("GuncellenmeTarihi")
+  kurBazliFiyat     Decimal?           @map("KurBazliFiyat") @db.Decimal(10, 2)
+  kurParaBirimi     String?            @map("KurParaBirimi") @db.VarChar(10)
+  paraBirimi        String             @default("TRY") @map("ParaBirimi") @db.VarChar(10)
+  grup              UrunHizmetGruplari @relation(fields: [grupId], references: [id])
+  teklifKalemleri   TeklifKalemleri[]
 
   @@index([grupId])
   @@map("Hizmetler")
-} 
+}
+
+enum EtkinlikTipi {
+  CARI_HESAP_BILGILERI  @map("Cari Hesap Bilgileri")
+  FATURA_KESILECEK      @map("Fatura Kesilecek")
+  GELEN_EPOSTA          @map("Gelen E-posta")
+  GIDEN_EPOSTA          @map("Giden E-posta")
+  IMALAT                @map("İmalat")
+  ISEMRI_OLUSTURULACAK  @map("İşemri Oluşturulacak")
+  KESIF                 @map("Keşif")
+  MONTAJ                @map("Montaj")
+  MUSTERI_ZIYARET       @map("Müşteri Ziyaret")
+  NUMUNE_GONDERIMI      @map("Numune Gönderimi")
+  PRIM_HAKEDISI         @map("Prim Hakedişi")
+  PROJE_CIZIM           @map("Proje Çizim")
+  PROJE_INCELEME        @map("Proje İnceleme")
+  SEVKIYAT              @map("Sevkiyat")
+  SIKAYET_ARIZA_SERVIS  @map("Şikayet/Arıza/Servis")
+  TAHSILAT_TAKIBI       @map("Tahsilat Takibi")
+  TEKLIF_DURUM_TAKIBI   @map("Teklif Durum Takibi")
+  TEKLIF_GONDERIM_ONAYI @map("Teklif Gönderim Onayı")
+  TEKLIF_ONAY_TALEBI    @map("Teklif Onay Talebi")
+  TEKLIF_VERILECEK      @map("Teklif Verilecek")
+  TEKNIK_SERVIS         @map("Teknik Servis")
+  TELEFON_GORUSMESI     @map("Telefon Görüşmesi")
+  TOPLANTI              @map("Toplantı")
+  TOPLU_EPOSTA          @map("Toplu E-posta")
+}

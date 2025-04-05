@@ -45,6 +45,11 @@ const formSchema = z.object({
   birimFiyat: z.coerce.number().min(0, {
     message: "Birim fiyat 0'dan büyük olmalıdır.",
   }),
+  paraBirimi: z.string().min(1, {
+    message: "Para birimi zorunludur.",
+  }),
+  kurBazliFiyat: z.coerce.number().min(0).nullable().optional(),
+  kurParaBirimi: z.string().nullable().optional(),
   kdvOrani: z.coerce.number().min(0).max(100, {
     message: "KDV oranı 0-100 arasında olmalıdır.",
   }),
@@ -60,6 +65,9 @@ type Props = {
     grupId: number
     birim: string
     birimFiyat: number
+    paraBirimi?: string
+    kurBazliFiyat?: number | null
+    kurParaBirimi?: string | null
     kdvOrani: number
     aciklama: string | null
     aktif: boolean
@@ -85,6 +93,13 @@ const birimler = [
   "TON",
 ]
 
+const paraBirimleri = [
+  "TRY",
+  "USD",
+  "EUR",
+  "GBP"
+]
+
 export function UrunForm({ urun, gruplar }: Props) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -98,6 +113,9 @@ export function UrunForm({ urun, gruplar }: Props) {
       grupId: urun?.grupId || 0,
       birim: urun?.birim || "",
       birimFiyat: urun?.birimFiyat || 0,
+      paraBirimi: urun?.paraBirimi || "TRY",
+      kurBazliFiyat: urun?.kurBazliFiyat || null,
+      kurParaBirimi: urun?.kurParaBirimi || null,
       kdvOrani: urun?.kdvOrani || 0,
       aciklama: urun?.aciklama || "",
       aktif: urun?.aktif ?? true,
@@ -132,25 +150,61 @@ export function UrunForm({ urun, gruplar }: Props) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      setIsLoading(true);
+      console.log("Form değerleri:", values);
+      
+      // Tüm alanları içeren bir obje oluşturalım
+      const formData = {
+        urunKodu: values.urunKodu,
+        urunAdi: values.urunAdi,
+        grupId: values.grupId,
+        birim: values.birim,
+        birimFiyat: values.birimFiyat,
+        paraBirimi: values.paraBirimi,
+        kurBazliFiyat: values.kurBazliFiyat,
+        kurParaBirimi: values.kurParaBirimi,
+        kdvOrani: values.kdvOrani,
+        aciklama: values.aciklama,
+        aktif: values.aktif,
+      };
+      
       if (urun) {
-        const { error } = await updateUrun(urun.id, values)
-        if (error) {
-          toast.error(error)
+        const result = await updateUrun(urun.id, formData)
+        console.log("Güncelleme sonucu:", result);
+        
+        if (result.error) {
+          toast.error(result.error)
+          setIsLoading(false);
           return
         }
+        
         toast.success("Ürün başarıyla güncellendi.")
+        // Yönlendirmeden önce biraz bekleyelim
+        setTimeout(() => {
+          router.push("/urunler");
+          router.refresh();
+        }, 500);
       } else {
-        const { error } = await createUrun(values)
-        if (error) {
-          toast.error(error)
+        const result = await createUrun(formData)
+        console.log("Oluşturma sonucu:", result);
+        
+        if (result.error) {
+          toast.error(result.error)
+          setIsLoading(false);
           return
         }
+        
         toast.success("Ürün başarıyla oluşturuldu.")
+        // Yönlendirmeden önce biraz bekleyelim
+        setTimeout(() => {
+          router.push("/urunler");
+          router.refresh();
+        }, 500);
       }
-      router.push("/urunler")
-      router.refresh()
     } catch (error) {
+      console.error("Form gönderim hatası:", error);
       toast.error("Bir hata oluştu.")
+      setIsLoading(false);
     }
   }
 
@@ -259,6 +313,94 @@ export function UrunForm({ urun, gruplar }: Props) {
                 <FormMessage />
               </FormItem>
             )}
+          />
+          <FormField
+            control={form.control}
+            name="paraBirimi"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Para Birimi</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value || undefined}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Para birimi seçin" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {paraBirimleri.map((paraBirimi) => (
+                      <SelectItem key={paraBirimi} value={paraBirimi}>
+                        {paraBirimi}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="kurBazliFiyat"
+            render={({ field }) => {
+              const value = field.value !== null && field.value !== undefined ? String(field.value) : '';
+              
+              return (
+                <FormItem>
+                  <FormLabel>Kur Bazlı Fiyat</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      placeholder="0.00" 
+                      value={value} 
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? null : Number(e.target.value);
+                        field.onChange(val);
+                      }} 
+                      onBlur={field.onBlur}
+                      disabled={field.disabled}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+          <FormField
+            control={form.control}
+            name="kurParaBirimi"
+            render={({ field }) => {
+              const value = field.value !== null && field.value !== undefined ? field.value : '';
+              
+              return (
+                <FormItem>
+                  <FormLabel>Kur Para Birimi</FormLabel>
+                  <Select 
+                    onValueChange={(val) => field.onChange(val || null)} 
+                    value={value || undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Kur para birimi seçin" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {paraBirimleri.map((paraBirimi) => (
+                        <SelectItem key={paraBirimi} value={paraBirimi}>
+                          {paraBirimi}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
           <FormField
             control={form.control}

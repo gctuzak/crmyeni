@@ -113,7 +113,7 @@ export async function getUrun(id: number) {
         grup: true,
       },
     })
-    return { urun }
+    return { urun: serializable(urun) }
   } catch (error) {
     console.error("Ürün getirilirken hata oluştu:", error)
     return { error: "Ürün getirilirken bir hata oluştu." }
@@ -126,6 +126,9 @@ type CreateUrunInput = {
   grupId: number
   birim: string
   birimFiyat: number
+  paraBirimi: string
+  kurBazliFiyat?: number | null
+  kurParaBirimi?: string | null
   kdvOrani: number
   aciklama?: string | null
   aktif?: boolean
@@ -133,17 +136,46 @@ type CreateUrunInput = {
 
 export async function createUrun(data: CreateUrunInput) {
   try {
+    console.log("Ürün oluşturma verileri:", JSON.stringify(data, null, 2));
+    
+    // Geçerlilik kontrolü
+    if (!data.urunAdi || data.urunAdi.trim() === "") {
+      throw new Error("Ürün adı gereklidir.")
+    }
+
+    if (!data.urunKodu || data.urunKodu.trim() === "") {
+      throw new Error("Ürün kodu gereklidir.")
+    }
+
+    // Oluşturulan ürün verisi
     const urun = await prisma.urunler.create({
       data: {
-        ...data,
+        urunKodu: data.urunKodu,
+        urunAdi: data.urunAdi,
+        grup: {
+          connect: { id: data.grupId }
+        },
+        birim: data.birim,
         birimFiyat: new Decimal(data.birimFiyat),
+        paraBirimi: data.paraBirimi,
+        kurBazliFiyat: data.kurBazliFiyat ? new Decimal(data.kurBazliFiyat) : null,
+        kurParaBirimi: data.kurParaBirimi || null,
+        kdvOrani: data.kdvOrani,
+        aciklama: data.aciklama,
+        aktif: data.aktif !== undefined ? data.aktif : true,
       },
+      include: {
+        grup: true
+      }
     })
+
+    console.log("Oluşturulan ürün:", JSON.stringify(urun, null, 2));
+
     revalidatePath("/urunler")
-    return { urun }
+    return { urun: serializable(urun) }
   } catch (error) {
     console.error("Ürün oluşturulurken hata oluştu:", error)
-    return { error: "Ürün oluşturulurken bir hata oluştu." }
+    return { error: error instanceof Error ? error.message : "Ürün oluşturulurken bir hata oluştu." }
   }
 }
 
@@ -151,18 +183,78 @@ type UpdateUrunInput = Partial<CreateUrunInput>
 
 export async function updateUrun(id: number, data: UpdateUrunInput) {
   try {
-    const urun = await prisma.urunler.update({
+    console.log("Güncelleme verileri:", JSON.stringify(data, null, 2));
+    
+    // Güncellenecek ürünü bul
+    const existingUrun = await prisma.urunler.findUnique({
       where: { id },
-      data: {
-        ...data,
-        birimFiyat: data.birimFiyat ? new Decimal(data.birimFiyat) : undefined,
-      },
+      include: {
+        grup: true,
+      }
     })
+
+    if (!existingUrun) {
+      throw new Error(`Ürün bulunamadı (ID: ${id})`)
+    }
+
+    // Birim fiyatı Decimal olarak düzenleme
+    const birimFiyat = data.birimFiyat !== undefined
+      ? new Decimal(data.birimFiyat)
+      : undefined
+
+    // Kur bazlı fiyatı Decimal olarak düzenleme
+    const kurBazliFiyat = data.kurBazliFiyat !== undefined
+      ? data.kurBazliFiyat !== null 
+        ? new Decimal(data.kurBazliFiyat)
+        : null
+      : undefined
+
+    // Güncellenecek veri objesi
+    const updateData: any = {
+      urunKodu: data.urunKodu,
+      urunAdi: data.urunAdi,
+      birim: data.birim,
+      birimFiyat: birimFiyat,
+      paraBirimi: data.paraBirimi,
+      kurBazliFiyat: kurBazliFiyat,
+      kurParaBirimi: data.kurParaBirimi,
+      kdvOrani: data.kdvOrani,
+      aciklama: data.aciklama,
+      aktif: data.aktif
+    };
+
+    // Eğer grupId varsa, ilişkisel alanı doğru şekilde ayarla
+    if (data.grupId) {
+      updateData.grup = {
+        connect: { id: data.grupId }
+      };
+    }
+
+    // Undefined değerleri kaldır
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    console.log("Güncellenecek veri:", updateData);
+
+    // Ürünü güncelle
+    const updatedUrun = await prisma.urunler.update({
+      where: { id },
+      data: updateData,
+      include: {
+        grup: true
+      }
+    })
+
+    console.log("Güncellenen ürün:", JSON.stringify(updatedUrun, null, 2));
+
     revalidatePath("/urunler")
-    return { urun }
+    return { urun: serializable(updatedUrun) }
   } catch (error) {
     console.error("Ürün güncellenirken hata oluştu:", error)
-    return { error: "Ürün güncellenirken bir hata oluştu." }
+    return { error: error instanceof Error ? error.message : "Ürün güncellenirken bir hata oluştu." }
   }
 }
 

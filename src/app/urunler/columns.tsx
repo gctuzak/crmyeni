@@ -21,6 +21,9 @@ type Urun = {
   grupId: number
   birim: string
   birimFiyat: number
+  paraBirimi: string
+  kurBazliFiyat?: number | null
+  kurParaBirimi?: string | null
   kdvOrani: number
   aciklama: string | null
   aktif: boolean
@@ -53,13 +56,19 @@ export const columns: ColumnDef<Urun>[] = [
     header: "Birim Fiyat",
     cell: ({ row }) => {
       const birimFiyat = parseFloat(row.getValue("birimFiyat"))
+      const paraBirimi = row.original.paraBirimi || "TRY"
+      
       const formatted = new Intl.NumberFormat("tr-TR", {
         style: "currency",
-        currency: "TRY",
+        currency: paraBirimi,
       }).format(birimFiyat)
 
       return <div className="text-right font-medium">{formatted}</div>
     },
+  },
+  {
+    accessorKey: "paraBirimi",
+    header: "Para Birimi",
   },
   {
     accessorKey: "kdvOrani",
